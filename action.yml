@@ -1,5 +1,5 @@
 name: 'central-login'
-description: A GitHub Action to configure login credentials for an ACS Central instance for use in subsequent steps
+description: A GitHub Action to configure login credentials for a RHACS Central instance for use in subsequent steps
 inputs:
   endpoint:
     required: true
