@@ -1,7 +1,7 @@
 {
   "name": "central-login",
   "version": "1.0.0",
-  "description": "A GitHub Action to configure login credentials for a RHACS Central instance",
+  "description": "A GitHub Action to configure login credentials for an ACS Central instance",
   "main": "src/main.ts",
   "scripts": {
     "build": "tsc",

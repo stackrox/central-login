@@ -2,7 +2,9 @@
 
 Configure your Central login credentials for use in other GitHub Actions.
 
-This action obtains an access token to a RedHat ACS Central instance and configures environment variables for your
+This action obtains an access token to
+a [Red Hat Advanced Cluster Security (ACS)](https://www.redhat.com/en/technologies/cloud-computing/openshift/advanced-cluster-security-kubernetes)
+Central instance and configures environment variables for your
 other actions to use.
 
 This is as simple as adding the following step to your workflow:
@@ -26,7 +28,8 @@ This is as simple as adding the following step to your workflow:
 It is currently only supported to retrieve credentials by
 using [GitHub's OIDC provider](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-cloud-providers).
 
-With GitHub's OIDC provider, this action will be issued with an ID token unique to this workflow run, which will then
+With [GitHub's OIDC provider](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-cloud-providers),
+this action will be issued with an ID token unique to this workflow run, which will then
 be exchanged for a ACS Central access token.
 
 For creating the ID
@@ -45,10 +48,10 @@ originating from GitHub Action workflow runs.
 At the current time, this only works via API, see the sample configuration below:
 
 ```bash
-curl -X POST \
+curl \
   https://<central-endpoint>/v1/auth/m2m \
-  -d \
-  '{
+  -d  @- << EOF
+  {
     "config": {
       "type": "GITHUB_ACTIONS",
       "tokenExpirationDuration": "5m", // This can be used to specify the expiration of the exchanged access token.
@@ -60,7 +63,8 @@ curl -X POST \
         }
       ],
     }
-  }'
+  }
+  EOF
 ```
 
 **Recommendations**
