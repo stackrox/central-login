@@ -1,6 +1,8 @@
 name: Package Action
 
 on:
+  # TODO(dhaus): Only for testing purposes.
+  pull_request:
   push:
     branches:
       - main
@@ -21,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
 
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v3.8.1
@@ -35,12 +39,12 @@ jobs:
         run: |
           npm run build
           npm run package
-# TODO(dhaus): Configure secrets in repository to enable pushing the dist.
-#      - uses: chainguard-dev/actions/setup-gitsign@main
-#      - name: Commit Dist
-#        run: |
-#          git config --global user.email "roxbot@stackrox.com"
-#          git config --global user.name "Robot Rox"
-#          git add dist
-#          git commit -m "chore: Update dist" || echo "No changes to commit."
-#          git push origin
+
+      - uses: chainguard-dev/actions/setup-gitsign@main
+      - name: Commit Dist
+        run: |
+          git config --global user.email "roxbot@stackrox.com"
+          git config --global user.name "Robot Rox"
+          git add dist
+          git commit -m "chore: Update dist" || echo "No changes to commit."
+          git push origin
