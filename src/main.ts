@@ -22,7 +22,8 @@ async function run(): Promise<void> {
 
     // Additionally, also set the Central API endpoint as environment variable for other jobs to use.
     // This does not need to be marked as a secret.
-    core.exportVariable('ROX_ENDPOINT', parsedURL.toString())
+    // The HTTPS scheme has to be stripped, as this is not expected to be set by roxctl for the endpoint.
+    core.exportVariable('ROX_ENDPOINT', getHostWithPort(parsedURL))
 
     core.info(
       'Successfully set the variable ROX_API_TOKEN and ROX_ENDPOINT to the access token and ' +
@@ -66,6 +67,16 @@ async function obtainAccessToken(
   )
 
   return response.data['accessToken']
+}
+
+function getHostWithPort(url: URL): string {
+  let host = url.host
+  // If the port is not given, assume HTTPs and port 443 (the port will be omitted if HTTPS is used as scheme _and_
+  // the port is the default 443 port).
+  if (url.port === '') {
+    host = `${host}:443`
+  }
+  return host
 }
 
 run()
