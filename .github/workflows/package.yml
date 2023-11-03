@@ -1,11 +1,7 @@
 name: Package Action
 
 on:
-  # TODO(dhaus): Only for testing purposes.
-  pull_request:
   push:
-    branches:
-      - main
     paths-ignore:
       - 'dist/**'
   workflow_dispatch:
