@@ -74,9 +74,6 @@ jobs:
           cd stackrox
           MONITORING_SUPPORT=false ./deploy/central.sh
           kubectl set env -n stackrox deploy/central ROX_AUTH_MACHINE_TO_MACHINE=true
-          
-          # Sleep to ensure Central pods are restarted
-          sleep 60
 
           # Kill port-forwards from the initial deploy.
           pkill -f kubectl'.*port-forward.*' || true
