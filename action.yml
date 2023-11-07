@@ -1,0 +1,13 @@
+name: 'central-login'
+description: A GitHub Action to configure login credentials for an ACS Central instance for use in subsequent steps
+inputs:
+  endpoint:
+    required: true
+    description: 'Central API endpoint in the format of https://<host>:<port>'
+  skip-tls-verify:
+    default: "false"
+    required: false
+    description: "Skip TLS certificate verification for Central's API Endpoint"
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
