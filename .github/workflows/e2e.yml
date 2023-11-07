@@ -4,14 +4,11 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - 'dist/**'
   schedule:
     - cron: '0 5 * * 0'
 
 jobs:
   e2e:
-    if: github.event_name == 'push' && github.actor == 'roxbogt'
     name: E2E
     runs-on: ubuntu-latest
     permissions:
