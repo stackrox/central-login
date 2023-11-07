@@ -1,0 +1,110 @@
+name: E2E
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'dist/**'
+  schedule:
+    - cron: '0 5 * * 0'
+
+jobs:
+  e2e:
+    if: github.event_name == 'push' && github_actor == 'roxbot'
+    name: E2E
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for the central-login action which we will test.
+      contents: read
+    env:
+      USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: stackrox/stackrox
+          path: stackrox
+          fetch-depth: 0 # Required since we need to calculate the latest image tag with the existing tags.
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Setup infractl
+        uses: stackrox/actions/infra/install-infractl@main
+
+      - name: Setup GCloud auth
+        uses: "google-github-actions/auth@v1"
+        with:
+          credentials_json: "${{ secrets.GCP_SERVICE_ACCOUNT_STACKROX_CI }}"
+
+      - name: Setup GCloud auth plugin
+        uses: "google-github-actions/setup-gcloud@v1"
+        with:
+          install_components: "gke-gcloud-auth-plugin"
+
+      - name: Create GKE infra cluster
+        uses: stackrox/actions/infra/create-cluster@v1.0.9
+        with:
+          token: ${{ secrets.INFRA_TOKEN }}
+          flavor: gke-default
+          name: central-login-${{ github.run_id }}
+          lifespan: 20m
+          wait: "true"
+          no-slack: "true"
+
+      - name: Deploy Central to infra cluster
+        env:
+          CLUSTER_NAME: central-login-${{ github.run_id }}
+          INFRA_TOKEN: ${{ secrets.INFRA_TOKEN }}
+          ARTIFACTS_DIR: ${{ runner.temp }}/gke-artifacts
+        run: |
+          # Fetch the artifacts for the GKE cluster.
+          infractl artifacts --download-dir=${ARTIFACTS_DIR} ${CLUSTER_NAME}
+          
+          # Setup context for GKE cluster.
+          echo "KUBECONFIG=${ARTIFACTS_DIR}/kubeconfig" >> $GITHUB_ENV
+          export KUBECONFIG=${ARTIFACTS_DIR}/kubeconfig
+          
+          # Kill port-forwards from earlier runs.
+          pkill -f kubectl'.*port-forward.*' || true
+          pkill -9 -f kubectl'.*port-forward.*' || true
+          
+          # Deploy Central via deploy scripts.
+          cd stackrox
+          MONITORING_SUPPORT=false ./deploy/central.sh
+          kubectl set env -n stackrox deploy/central ROX_AUTH_MACHINE_TO_MACHINE=true
+
+          # Kill port-forwards from the initial deploy.
+          pkill -f kubectl'.*port-forward.*' || true
+          pkill -9 -f kubectl'.*port-forward.*' || true
+          
+          ./deploy/k8s/central-deploy/central/scripts/port-forward.sh 8000
+          
+          echo "ROX_PASSWORD=$(cat deploy/k8s/central-deploy/password)" >> $GITHUB_ENV
+          
+      - name: Wait for Central to be ready
+        run: |
+          cd stackrox
+          export USE_MIDSTREAM_IMAGES=false # Required for wait_for_api to be set.
+          source "tests/e2e/lib.sh"
+          wait_for_api
+
+      - name: Add machine to machine configuration in Central
+        run: |
+          curl -u admin:${ROX_PASSWORD} \
+          https://localhost:8000/v1/auth/m2m \
+          -k -d '{"config": {"type": "GITHUB_ACTIONS", "tokenExpirationDuration": "5m", "mappings":[{"key":"sub","valueExpression":"repo:stackrox/central-login.*", "role":"Analyst"}]}}'
+
+      - name: Run central-login action
+        uses: ./
+        with:
+          endpoint: https://localhost:8000
+          skip-tls-verify: true
+
+      - name: Fetch roxctl and run roxctl central whoami
+        run: |
+          curl -k -u admin:${ROX_PASSWORD} https://localhost:8000/api/cli/download/roxctl-linux --output ./roxctl
+          chmod +x ./roxctl
+          echo $ROX_ENDPOINT
+          ./roxctl central whoami
