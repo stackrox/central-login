@@ -75,6 +75,8 @@ jobs:
           # Kill port-forwards from the initial deploy.
           pkill -f kubectl'.*port-forward.*' || true
           pkill -9 -f kubectl'.*port-forward.*' || true
+
+          sleep 60s
           
           ./deploy/k8s/central-deploy/central/scripts/port-forward.sh 8000
           
