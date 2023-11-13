@@ -33,9 +33,8 @@ async function run(): Promise<void> {
     core.info(`${error}`)
     if (isAxiosError(error)) {
       core.setFailed(
-        `Failed to exchange token: HTTP Status: ${
-          error?.response?.status
-        } Response: ${JSON.stringify(error?.response?.data)}`
+        `Failed to exchange token: HTTP Status: ${error?.response
+          ?.status} Response: ${JSON.stringify(error?.response?.data)}`
       )
     } else if (error instanceof Error) core.setFailed(error.message)
   }
