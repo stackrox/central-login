@@ -1,5 +1,7 @@
 # Central Login GitHub Action
 
+![E2E tests](https://github.com/stackrox/central-login/actions/workflows/e2e.yml/badge.svg)
+
 Configure your Central login credentials for use in other GitHub Actions.
 
 This action obtains an access token to
