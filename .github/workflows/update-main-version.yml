@@ -32,5 +32,5 @@ jobs:
           git config --global user.email "roxbot@stackrox.com"
           git config --global user.name "Robot Rox"
           # Move the main version tag to the target tag.
-          git tag -f ${{ github.event.inputs.main_version }} ${{ github.event.inputs.target }}
-          git push origin ${{ github.event.inputs.main_version }} --force
+          git tag -s -f ${{ github.event.inputs.main_version }} ${{ github.event.inputs.target }}
+          git push origin ${{ github.event.inputs.main_version }} --force --tags
