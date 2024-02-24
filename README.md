@@ -103,8 +103,8 @@ For verifying everything works correctly, the example below can be used:
         endpoint: https://<central-endpoint>:443
 
     - name: roxctl central whoami
-      image: quay.io/stackrox-io/roxctl:4.3.0
-      script: central whoami
+      run: |
+        roxctl central whoami
 ```
 
 This will output the specifics about the access token (i.e. it's associated permissions and roles) as well as the
