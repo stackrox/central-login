@@ -41,7 +41,7 @@ jobs:
           install_components: "gke-gcloud-auth-plugin"
 
       - name: Create GKE infra cluster
-        uses: stackrox/actions/infra/create-cluster@v1.0.12
+        uses: stackrox/actions/infra/create-cluster@v1.0.13
         with:
           token: ${{ secrets.INFRA_TOKEN }}
           flavor: gke-default
