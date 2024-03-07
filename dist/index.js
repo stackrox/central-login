@@ -29171,8 +29171,8 @@ const core = __importStar(__nccwpck_require__(2186));
 const axios_1 = __importStar(__nccwpck_require__(8757));
 const https = __importStar(__nccwpck_require__(5687));
 function run() {
-    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
         // Input from the GitHub Action.
         // Currently only supports the endpoint as well as whether to skip TLS verification.
         const endpoint = core.getInput('endpoint', { required: true });
