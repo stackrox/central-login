@@ -2,9 +2,8 @@ name: E2E
 
 on:
   push:
-    # TODO(dhaus): Temporarily disable this to test the workflow in PR.
-    #branches:
-    #  - main
+    branches:
+      - main
   schedule:
     - cron: '0 5 * * 0'
 
