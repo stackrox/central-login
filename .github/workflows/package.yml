@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.RHACS_BOT_GITHUB_TOKEN }}
           ref: ${{ github.ref_name }}
 
       - name: Setup Node.js 20.x
@@ -42,8 +42,8 @@ jobs:
       - uses: chainguard-dev/actions/setup-gitsign@main
       - name: Commit Dist
         run: |
-          git config --global user.email "roxbot@stackrox.com"
-          git config --global user.name "Robot Rox"
+          git config --global user.email ${{ secrets.RHACS_BOT_GITHUB_EMAIL }}
+          git config --global user.name ${{ secrets.RHACS_BOT_GITHUB_USERNAME }}
           git add dist
           git commit -m "chore: Update dist" || echo "No changes to commit."
           git push origin

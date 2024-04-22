@@ -23,14 +23,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Required since we need to ensure all tags are contained within the checkout.
+          token: ${{ secrets.RHACS_BOT_GITHUB_TOKEN }}
 
       - name: Setup GitSign
         uses: chainguard-dev/actions/setup-gitsign@main
 
       - name: Move main version tag
         run: |
-          git config --global user.email "roxbot@stackrox.com"
-          git config --global user.name "Robot Rox"
+          git config --global user.email ${{ secrets.RHACS_BOT_GITHUB_EMAIL }}
+          git config --global user.name ${{ secrets.RHACS_BOT_GITHUB_USERNAME }}
           # Move the main version tag to the target tag.
           git tag -s -f ${{ github.event.inputs.main_version }} ${{ github.event.inputs.target }}
           git push origin ${{ github.event.inputs.main_version }} --force --tags
