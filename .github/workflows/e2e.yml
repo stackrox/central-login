@@ -101,9 +101,9 @@ jobs:
           endpoint: https://localhost:8000
           skip-tls-verify: true
 
-      - name: Fetch roxctl and run roxctl central whoami
+      - name: Install roxctl
+        uses: stackrox/roxctl-installer-action@v1
+
+      - name: Check the current user with roxctl
         run: |
-          curl -k -u admin:${ROX_PASSWORD} https://localhost:8000/api/cli/download/roxctl-linux --output ./roxctl
-          chmod +x ./roxctl
-          echo $ROX_ENDPOINT
-          ./roxctl central whoami
+          roxctl central whoami

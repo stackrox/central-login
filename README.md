@@ -47,8 +47,9 @@ permissions:
 Before being able to exchange tokens, the ACS Central instance needs to be configured to allow exchanging tokens
 originating from GitHub Action workflow runs.
 
-At the current time, this only works via API, see the sample configuration below:
+For more information on how to configure this, follow the [RHACS documentation](https://docs.openshift.com/acs/4.4/operating/manage-user-access/configure-short-lived-access.html).
 
+Below is a sample configuration via API you can use:
 ```bash
 curl \
   https://<central-endpoint>/v1/auth/m2m \
@@ -97,10 +98,16 @@ After the central login step has succeeded, the following environment variables 
 For verifying everything works correctly, the example below can be used:
 
 ```yaml
-    - name: Central Login
+    - name: Login to Central
       uses: stackrox/central-login@v1
       with:
         endpoint: https://<central-endpoint>:443
+
+    - name: Install roxctl from Central
+      uses: stackrox/roxctl-installer-action@v1
+      with:
+        central-endpoint: https://${{ env.ROX_ENDPOINT }}
+        central-token: ${{ env.ROX_API_TOKEN }}
 
     - name: roxctl central whoami
       run: |
