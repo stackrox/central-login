@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Required since we need to ensure all tags are contained within the checkout.
+          token: ${{ secrets.RHACS_BOT_GITHUB_TOKEN }}
 
       - name: Setup GitSign
         uses: chainguard-dev/actions/setup-gitsign@main
