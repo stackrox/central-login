@@ -13,96 +13,57 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # Required for the central-login action which we will test.
-      contents: read
-    env:
-      USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: stackrox/stackrox
-          path: stackrox
-          fetch-depth: 0 # Required since we need to calculate the latest image tag with the existing tags.
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
 
       - name: Setup infractl
         uses: stackrox/actions/infra/install-infractl@main
-
-      - name: Setup GCloud auth
-        uses: "google-github-actions/auth@v2"
-        with:
-          credentials_json: "${{ secrets.GCP_SERVICE_ACCOUNT_STACKROX_CI }}"
-
-      - name: Setup GCloud auth plugin
-        uses: "google-github-actions/setup-gcloud@v2"
-        with:
-          install_components: "gke-gcloud-auth-plugin"
 
       - name: Create GKE infra cluster
         uses: stackrox/actions/infra/create-cluster@v1.0.14
         with:
           token: ${{ secrets.INFRA_TOKEN }}
-          flavor: gke-default
+          flavor: qa-demo
           name: central-login-${{ github.run_id }}
-          lifespan: 20m
+          lifespan: 1h
+          args: main-image=quay.io/stackrox-io/main:latest
           wait: "true"
           no-slack: "true"
 
-      - name: Deploy Central to infra cluster
+      - name: Setup environment from cluster artifacts
         env:
           CLUSTER_NAME: central-login-${{ github.run_id }}
           INFRA_TOKEN: ${{ secrets.INFRA_TOKEN }}
           ARTIFACTS_DIR: ${{ runner.temp }}/gke-artifacts
         run: |
           # Fetch the artifacts for the GKE cluster.
-          infractl artifacts --download-dir=${ARTIFACTS_DIR} ${CLUSTER_NAME}
-          
-          # Setup context for GKE cluster.
-          echo "KUBECONFIG=${ARTIFACTS_DIR}/kubeconfig" >> $GITHUB_ENV
-          export KUBECONFIG=${ARTIFACTS_DIR}/kubeconfig
-          
-          # Kill port-forwards from earlier runs.
-          pkill -f kubectl'.*port-forward.*' || true
-          pkill -9 -f kubectl'.*port-forward.*' || true
-          
-          # Deploy Central via deploy scripts.
-          cd stackrox
-          MONITORING_SUPPORT=false ./deploy/central.sh
-          kubectl set env -n stackrox deploy/central ROX_AUTH_MACHINE_TO_MACHINE=true
-
-          # Kill port-forwards from the initial deploy.
-          pkill -f kubectl'.*port-forward.*' || true
-          pkill -9 -f kubectl'.*port-forward.*' || true
-
-          sleep 60s
-          
-          ./deploy/k8s/central-deploy/central/scripts/port-forward.sh 8000
-          
-          echo "ROX_PASSWORD=$(cat deploy/k8s/central-deploy/password)" >> $GITHUB_ENV
-          
-      - name: Wait for Central to be ready
-        run: |
-          cd stackrox
-          export USE_MIDSTREAM_IMAGES=false # Required for wait_for_api to be set.
-          source "tests/e2e/lib.sh"
-          wait_for_api
+          infractl artifacts --download-dir=${ARTIFACTS_DIR} ${CLUSTER_NAME} >/dev/null
+          # Set both URL and admin password.
+          ROX_PASSWORD=$(cat ${ARTIFACTS_DIR}/admin-password)
+          ROX_URL=$(cat ${ARTIFACTS_DIR}/url)
+          echo "::add-mask::$ROX_PASSWORD"
+          echo "::add-mask::$ROX_URL"
+          echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
+          echo "ROX_URL=$ROX_URL" >> $GITHUB_ENV
 
       - name: Add machine to machine configuration in Central
         run: |
           curl -u admin:${ROX_PASSWORD} \
-          https://localhost:8000/v1/auth/m2m \
+          ${ROX_URL}/v1/auth/m2m \
           -k -d '{"config": {"type": "GITHUB_ACTIONS", "tokenExpirationDuration": "5m", "mappings":[{"key":"sub","valueExpression":"repo:stackrox/central-login.*", "role":"Analyst"}]}}'
 
       - name: Run central-login action
         uses: ./
         with:
-          endpoint: https://localhost:8000
+          endpoint: ${{ env.ROX_URL }}
           skip-tls-verify: true
 
       - name: Install roxctl
         uses: stackrox/roxctl-installer-action@v1
+        with:
+          central-endpoint: ${{ env.ROX_URL }}
+          central-token: ${{ env.ROX_API_TOKEN }}
+          skip-tls-verify: true
 
       - name: Check the current user with roxctl
         run: |
