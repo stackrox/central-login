@@ -56,7 +56,7 @@ async function obtainAccessToken(
   const response = await axios.post(
     endpoint.toString(),
     JSON.stringify(exchangeTokenRequest),
-    {httpsAgent: agent}
+    {httpsAgent: agent, headers: { 'User-Agent': 'central-login-action'}},
   )
 
   core.info(
