@@ -1,6 +1,7 @@
 name: E2E
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -9,6 +10,7 @@ on:
 
 jobs:
   e2e:
+    if: contains(github.event.pull_request.labels.*.name, 'e2e') || github.ref == 'refs/heads/main'
     name: E2E
     runs-on: ubuntu-latest
     permissions:
