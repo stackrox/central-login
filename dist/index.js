@@ -30175,7 +30175,7 @@ module.exports = require("zlib");
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
-// Axios v1.7.1 Copyright (c) 2024 Matt Zabriskie and contributors
+// Axios v1.7.2 Copyright (c) 2024 Matt Zabriskie and contributors
 
 
 const FormData$1 = __nccwpck_require__(4334);
@@ -32212,7 +32212,7 @@ function buildFullPath(baseURL, requestedURL) {
   return requestedURL;
 }
 
-const VERSION = "1.7.1";
+const VERSION = "1.7.2";
 
 function parseProtocol(url) {
   const match = /^([-+\w]{1,25})(:?\/\/|:)/.exec(url);
@@ -33924,11 +33924,11 @@ const fetchProgressDecorator = (total, fn) => {
   }));
 };
 
-const isFetchSupported = typeof fetch !== 'undefined';
-const isReadableStreamSupported = isFetchSupported && typeof ReadableStream !== 'undefined';
+const isFetchSupported = typeof fetch === 'function' && typeof Request === 'function' && typeof Response === 'function';
+const isReadableStreamSupported = isFetchSupported && typeof ReadableStream === 'function';
 
 // used only inside the fetch adapter
-const encodeText = isFetchSupported && (typeof TextEncoder !== 'undefined' ?
+const encodeText = isFetchSupported && (typeof TextEncoder === 'function' ?
     ((encoder) => (str) => encoder.encode(str))(new TextEncoder()) :
     async (str) => new Uint8Array(await new Response(str).arrayBuffer())
 );
