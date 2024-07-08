@@ -29921,22 +29921,21 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const axios_1 = __importStar(__nccwpck_require__(8757));
-const axios_retry_1 = __importDefault(__nccwpck_require__(8709));
+const axios_retry_1 = __importStar(__nccwpck_require__(8709));
 const https = __importStar(__nccwpck_require__(5687));
 (0, axios_retry_1.default)(axios_1.default, {
     retries: 3,
-    retryDelay: (retryCount) => {
-        console.log(`retry attempt: ${retryCount}`);
+    retryDelay: retryCount => {
+        core.info(`HTTP request retry attempt: ${retryCount}`);
         return retryCount * 2000;
     },
-    retryCondition: (error) => axios_retry_1.default.isNetworkError(error) ||
-        axios_retry_1.default.isRetryableError(error),
+    retryCondition: error => {
+        core.warning(error);
+        return (0, axios_retry_1.isNetworkError)(error) || (0, axios_retry_1.isRetryableError)(error);
+    }
 });
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
