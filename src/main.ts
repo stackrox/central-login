@@ -1,6 +1,20 @@
 import * as core from '@actions/core'
 import axios, {isAxiosError} from 'axios'
+import axiosRetry, {isNetworkError, isRetryableError} from 'axios-retry';
+
 import * as https from 'https'
+
+axiosRetry(axios, {
+  retries: 3,
+  retryDelay: retryCount => {
+    core.info(`HTTP request retry attempt: ${retryCount}`)
+    return retryCount * 2000
+  },
+  retryCondition: error => {
+    core.warning(error)
+    return isNetworkError(error) || isRetryableError(error)
+  }
+})
 
 async function run(): Promise<void> {
   // Input from the GitHub Action.
