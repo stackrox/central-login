@@ -30335,10 +30335,12 @@ exports.DEFAULT_OPTIONS = {
 function getRequestOptions(config, defaultOptions) {
     return Object.assign(Object.assign(Object.assign({}, exports.DEFAULT_OPTIONS), defaultOptions), config[exports.namespace]);
 }
-function setCurrentState(config, defaultOptions) {
+function setCurrentState(config, defaultOptions, resetLastRequestTime = false) {
     const currentState = getRequestOptions(config, defaultOptions || {});
     currentState.retryCount = currentState.retryCount || 0;
-    currentState.lastRequestTime = currentState.lastRequestTime || Date.now();
+    if (!currentState.lastRequestTime || resetLastRequestTime) {
+        currentState.lastRequestTime = Date.now();
+    }
     config[exports.namespace] = currentState;
     return currentState;
 }
@@ -30423,7 +30425,7 @@ function handleMaxRetryTimesExceeded(currentState, error) {
 const axiosRetry = (axiosInstance, defaultOptions) => {
     const requestInterceptorId = axiosInstance.interceptors.request.use((config) => {
         var _a;
-        setCurrentState(config, defaultOptions);
+        setCurrentState(config, defaultOptions, true);
         if ((_a = config[exports.namespace]) === null || _a === void 0 ? void 0 : _a.validateResponse) {
             // by setting this, all HTTP responses will be go through the error interceptor first
             config.validateStatus = () => false;
