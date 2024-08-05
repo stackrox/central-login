@@ -30248,7 +30248,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_OPTIONS = exports.exponentialDelay = exports.retryAfter = exports.isNetworkOrIdempotentRequestError = exports.isIdempotentRequestError = exports.isSafeRequestError = exports.isRetryableError = exports.isNetworkError = exports.namespace = void 0;
+exports.DEFAULT_OPTIONS = exports.linearDelay = exports.exponentialDelay = exports.retryAfter = exports.isNetworkOrIdempotentRequestError = exports.isIdempotentRequestError = exports.isSafeRequestError = exports.isRetryableError = exports.isNetworkError = exports.namespace = void 0;
 const is_retry_allowed_1 = __importDefault(__nccwpck_require__(841));
 exports.namespace = 'axios-retry';
 function isNetworkError(error) {
@@ -30323,6 +30323,18 @@ function exponentialDelay(retryNumber = 0, error = undefined, delayFactor = 100)
     return delay + randomSum;
 }
 exports.exponentialDelay = exponentialDelay;
+/**
+ * Linear delay
+ * @param {number | undefined} delayFactor - delay factor in milliseconds (default: 100)
+ * @returns {function} (retryNumber: number, error: AxiosError | undefined) => number
+ */
+function linearDelay(delayFactor = 100) {
+    return (retryNumber = 0, error = undefined) => {
+        const delay = retryNumber * delayFactor;
+        return Math.max(delay, retryAfter(error));
+    };
+}
+exports.linearDelay = linearDelay;
 exports.DEFAULT_OPTIONS = {
     retries: 3,
     retryCondition: isNetworkOrIdempotentRequestError,
@@ -30458,6 +30470,7 @@ axiosRetry.isSafeRequestError = isSafeRequestError;
 axiosRetry.isIdempotentRequestError = isIdempotentRequestError;
 axiosRetry.isNetworkOrIdempotentRequestError = isNetworkOrIdempotentRequestError;
 axiosRetry.exponentialDelay = exponentialDelay;
+axiosRetry.linearDelay = linearDelay;
 axiosRetry.isRetryableError = isRetryableError;
 exports["default"] = axiosRetry;
 
