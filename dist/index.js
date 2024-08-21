@@ -29993,7 +29993,7 @@ function obtainAccessToken(endpoint, skipTLSVerify) {
             id_token: idToken
         };
         const response = yield axios_1.default.post(endpoint.toString(), JSON.stringify(exchangeTokenRequest), { httpsAgent: agent, headers: { 'User-Agent': 'central-login-GHA' } });
-        core.info(`Received status ${response.status} from endpoint ${endpoint.toString()}: ${JSON.stringify(response.data)}`);
+        core.info(`Received status ${response.status} from endpoint ${endpoint.toString()}`);
         return response.data['accessToken'];
     });
 }
