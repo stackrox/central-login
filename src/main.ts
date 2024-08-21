@@ -76,7 +76,7 @@ async function obtainAccessToken(
   core.info(
     `Received status ${
       response.status
-    } from endpoint ${endpoint.toString()}: ${JSON.stringify(response.data)}`
+    } from endpoint ${endpoint.toString()}`
   )
 
   return response.data['accessToken']
