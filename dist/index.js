@@ -30494,7 +30494,7 @@ exports["default"] = axiosRetry;
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
-// Axios v1.7.6 Copyright (c) 2024 Matt Zabriskie and contributors
+// Axios v1.7.7 Copyright (c) 2024 Matt Zabriskie and contributors
 
 
 const FormData$1 = __nccwpck_require__(4334);
@@ -32567,7 +32567,7 @@ function buildFullPath(baseURL, requestedURL) {
   return requestedURL;
 }
 
-const VERSION = "1.7.6";
+const VERSION = "1.7.7";
 
 function parseProtocol(url) {
   const match = /^([-+\w]{1,25})(:?\/\/|:)/.exec(url);
@@ -33459,7 +33459,7 @@ const httpAdapter = isHttpAdapterSupported && function httpAdapter(config) {
     if (config.socketPath) {
       options.socketPath = config.socketPath;
     } else {
-      options.hostname = parsed.hostname;
+      options.hostname = parsed.hostname.startsWith("[") ? parsed.hostname.slice(1, -1) : parsed.hostname;
       options.port = parsed.port;
       setProxy(options, config.proxy, protocol + '//' + parsed.hostname + (parsed.port ? ':' + parsed.port : '') + options.path);
     }
@@ -34226,14 +34226,34 @@ const streamChunk = function* (chunk, chunkSize) {
   }
 };
 
-const readBytes = async function* (iterable, chunkSize, encode) {
-  for await (const chunk of iterable) {
-    yield* streamChunk(ArrayBuffer.isView(chunk) ? chunk : (await encode(String(chunk))), chunkSize);
+const readBytes = async function* (iterable, chunkSize) {
+  for await (const chunk of readStream(iterable)) {
+    yield* streamChunk(chunk, chunkSize);
   }
 };
 
-const trackStream = (stream, chunkSize, onProgress, onFinish, encode) => {
-  const iterator = readBytes(stream, chunkSize, encode);
+const readStream = async function* (stream) {
+  if (stream[Symbol.asyncIterator]) {
+    yield* stream;
+    return;
+  }
+
+  const reader = stream.getReader();
+  try {
+    for (;;) {
+      const {done, value} = await reader.read();
+      if (done) {
+        break;
+      }
+      yield value;
+    }
+  } finally {
+    await reader.cancel();
+  }
+};
+
+const trackStream = (stream, chunkSize, onProgress, onFinish) => {
+  const iterator = readBytes(stream, chunkSize);
 
   let bytes = 0;
   let done;
@@ -34413,7 +34433,7 @@ const fetchAdapter = isFetchSupported && (async (config) => {
           progressEventReducer(asyncDecorator(onUploadProgress))
         );
 
-        data = trackStream(_request.body, DEFAULT_CHUNK_SIZE, onProgress, flush, encodeText);
+        data = trackStream(_request.body, DEFAULT_CHUNK_SIZE, onProgress, flush);
       }
     }
 
@@ -34456,7 +34476,7 @@ const fetchAdapter = isFetchSupported && (async (config) => {
         trackStream(response.body, DEFAULT_CHUNK_SIZE, onProgress, () => {
           flush && flush();
           unsubscribe && unsubscribe();
-        }, encodeText),
+        }),
         options
       );
     }
