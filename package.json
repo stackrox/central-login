@@ -21,7 +21,7 @@
     "axios-retry": "^4.5.0"
   },
   "devDependencies": {
-    "@types/node": "^22.7.5",
+    "@types/node": "^22.7.8",
     "@stylistic/eslint-plugin": "^2.9.0",
     "@typescript-eslint/eslint-plugin": "^8.11.0",
     "@typescript-eslint/parser": "^8.11.0",
