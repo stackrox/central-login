@@ -21,7 +21,8 @@ export default [
         ignores: [
             "dist/",
             "lib/",
-            "node_modules/"
+            "node_modules/",
+            "!src/",
         ],
     },
     ...compat.extends("plugin:github/recommended"), {
