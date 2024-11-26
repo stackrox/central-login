@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import axios, {isAxiosError} from 'axios'
-import axiosRetry, {isNetworkError, isRetryableError} from 'axios-retry';
+import axiosRetry, {isNetworkError, isRetryableError} from 'axios-retry'
 
 import * as https from 'https'
 
