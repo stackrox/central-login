@@ -1,20 +1,8 @@
-import * as core from '@actions/core'
-import axios, {isAxiosError} from 'axios'
-import axiosRetry, {isNetworkError, isRetryableError} from 'axios-retry'
+import * as core from '@actions/core';
+import axios, {isAxiosError} from 'axios';
+import isRetryAllowed from 'is-retry-allowed';
 
 import * as https from 'https'
-
-axiosRetry(axios, {
-  retries: 3,
-  retryDelay: retryCount => {
-    core.info(`HTTP request retry attempt: ${retryCount}`)
-    return retryCount * 2000
-  },
-  retryCondition: error => {
-    core.warning(error)
-    return isNetworkError(error) || isRetryableError(error)
-  }
-})
 
 async function run(): Promise<void> {
   // Input from the GitHub Action.
@@ -67,19 +55,73 @@ async function obtainAccessToken(
   const exchangeTokenRequest = {
     id_token: idToken
   }
-  const response = await axios.post(
-    endpoint.toString(),
+  
+  const response = await postWithRetries(
+    agent,
+    endpoint,
     JSON.stringify(exchangeTokenRequest),
-    {httpsAgent: agent, headers: { 'User-Agent': 'central-login-GHA'}},
-  )
+    3,
+    2000,
+  );
 
-  core.info(
-    `Received status ${
-      response.status
-    } from endpoint ${endpoint.toString()}`
-  )
+  return response
+}
 
-  return response.data['accessToken']
+async function postWithRetries(
+  agent: https.Agent,
+  endpoint: URL,
+  payload: string,
+  maxRetries: number = 3,
+  baseDelay: number = 2000
+): Promise<string> {
+  let lastError: any;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        core.info(`HTTP request retry attempt: ${attempt}`)
+        const delay = baseDelay * attempt;
+        await new Promise( (resolve) => setTimeout(resolve, delay) );
+      }
+      const result = await axios.post(
+        endpoint.toString(),
+        payload,
+        {httpsAgent: agent, headers: { 'User-Agent': 'central-login-GHA'}},
+      );
+
+      core.info(
+        `Received status ${
+          result.status
+        } from endpoint ${endpoint.toString()}`
+      )
+
+      return result.data['accessToken'];
+    } catch (error: any) {
+      lastError = error;
+      if (isRetryableError(error) && attempt < maxRetries) {
+        continue;
+      }
+      return Promise.reject(error);
+    }
+  }
+  return Promise.reject(lastError);
+}
+
+function isRetryableError(error: any): boolean {
+  core.warning(error);
+  if (error.code === 'ECONNABORTED') {
+    return false;
+  }
+  if (!error.response) {
+    return true;
+  }
+  const errorStatus = error.response.status;
+  if (errorStatus === 429) {
+    return true;
+  }
+  if (errorStatus >= 500 && errorStatus <= 599) {
+    return true;
+  }
+  return isRetryAllowed(error);
 }
 
 function getHostWithPort(url: URL): string {
