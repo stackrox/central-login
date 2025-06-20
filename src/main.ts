@@ -74,7 +74,7 @@ async function postWithRetries(
   maxRetries: number = 3,
   baseDelay: number = 2000
 ): Promise<string> {
-  let lastError: any;
+  let lastError;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       if (attempt > 0) {
@@ -95,7 +95,7 @@ async function postWithRetries(
       )
 
       return result.data['accessToken'];
-    } catch (error: any) {
+    } catch (error) {
       lastError = error;
       if (isRetryableError(error) && attempt < maxRetries) {
         continue;
@@ -106,7 +106,7 @@ async function postWithRetries(
   return Promise.reject(lastError);
 }
 
-function isRetryableError(error: any): boolean {
+function isRetryableError(error): boolean {
   core.warning(error);
   if (error.code === 'ECONNABORTED') {
     return false;
