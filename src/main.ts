@@ -85,8 +85,8 @@ async function postWithRetries(
       const result = await axios.post(
         endpoint.toString(),
         payload,
-        {httpsAgent: agent, headers: {'User-Agent': 'central-login-GHA'}
-      });
+        {httpsAgent: agent, headers: {'User-Agent': 'central-login-GHA'}},
+      );
 
       core.info(
         `Received status ${
@@ -99,7 +99,6 @@ async function postWithRetries(
       lastError = error;
       if (isAxiosError(error)) {
         const axiosErr: AxiosError = error as AxiosError;
-        core.warning(axiosErr);
         if (isRetryableError(axiosErr) && attempt < maxRetries) {
           continue;
         }
@@ -111,6 +110,7 @@ async function postWithRetries(
 }
 
 function isRetryableError(error: AxiosError): boolean {
+  core.warning(error);
   if (error.code === 'ECONNABORTED') {
     return false;
   }
