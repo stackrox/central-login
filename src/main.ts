@@ -79,14 +79,14 @@ async function postWithRetries(
     try {
       if (attempt > 0) {
         core.info(`HTTP request retry attempt: ${attempt}`)
-        const delay = baseDelay * attempt
-        await new Promise(resolve => setTimeout(resolve, delay))
+        const delay = baseDelay * attempt;
+        await new Promise( (resolve) => setTimeout(resolve, delay) );
       }
       const result = await axios.post(
         endpoint.toString(),
         payload,
         {httpsAgent: agent, headers: {'User-Agent': 'central-login-GHA'}
-      })
+      });
 
       core.info(
         `Received status ${
@@ -94,7 +94,7 @@ async function postWithRetries(
         } from endpoint ${endpoint.toString()}`
       )
 
-      return result.data['accessToken']
+      return result.data['accessToken'];
     } catch (error) {
       lastError = error;
       if (isAxiosError(error)) {
@@ -111,7 +111,7 @@ async function postWithRetries(
 }
 
 function isRetryableError(error: AxiosError): boolean {
-  if (error.code !== 'ECONNABORTED') {
+  if (error.code === 'ECONNABORTED') {
     return false;
   }
   if (!error.response) {
