@@ -97,31 +97,29 @@ async function postWithRetries(
       return result.data['accessToken'];
     } catch (error) {
       lastError = error;
-      if (isRetryableError(error) && attempt < maxRetries) {
+      // Check if error allows retry
+      let isRetryableError = false;
+      if error.code !== 'ECONNABORTED' {
+        if !error.response {
+          isRetryableError = true;
+        }
+        const errorStatus = error.response.status;
+        if error.status === 429 {
+          isRetryableError = true;
+        }
+        if (errorStatus >= 500 && errorStatus <= 599) {
+          isRetryableError = true;
+        }
+        isRetryableError = isRetryAllowed(error);
+      }
+      if (isRetryableError && attempt < maxRetries) {
+        // retry
         continue;
       }
       return Promise.reject(error);
     }
   }
   return Promise.reject(lastError);
-}
-
-function isRetryableError(error): boolean {
-  core.warning(error);
-  if (error.code === 'ECONNABORTED') {
-    return false;
-  }
-  if (!error.response) {
-    return true;
-  }
-  const errorStatus = error.response.status;
-  if (errorStatus === 429) {
-    return true;
-  }
-  if (errorStatus >= 500 && errorStatus <= 599) {
-    return true;
-  }
-  return isRetryAllowed(error);
 }
 
 function getHostWithPort(url: URL): string {
