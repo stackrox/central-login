@@ -96,6 +96,7 @@ async function postWithRetries(
 
       return result.data['accessToken'];
     } catch (error) {
+      core.warning(error);
       lastError = error;
       // Check if error allows retry
       let isRetryableError = false;
