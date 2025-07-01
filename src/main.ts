@@ -99,12 +99,12 @@ async function postWithRetries(
       lastError = error;
       // Check if error allows retry
       let isRetryableError = false;
-      if error.code !== 'ECONNABORTED' {
-        if !error.response {
+      if (error.code !== 'ECONNABORTED') {
+        if (!error.response) {
           isRetryableError = true;
         }
         const errorStatus = error.response.status;
-        if error.status === 429 {
+        if (error.status === 429) {
           isRetryableError = true;
         }
         if (errorStatus >= 500 && errorStatus <= 599) {
