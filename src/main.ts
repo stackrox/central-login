@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import axios, {isAxiosError} from 'axios';
+import axios, {isAxiosError, AxiosError} from 'axios';
 import isRetryAllowed from 'is-retry-allowed';
 
 import * as https from 'https'
@@ -55,7 +55,7 @@ async function obtainAccessToken(
   const exchangeTokenRequest = {
     id_token: idToken
   }
-  
+
   const response = await postWithRetries(
     agent,
     endpoint,
@@ -85,7 +85,7 @@ async function postWithRetries(
       const result = await axios.post(
         endpoint.toString(),
         payload,
-        {httpsAgent: agent, headers: { 'User-Agent': 'central-login-GHA'}},
+        {httpsAgent: agent, headers: {'User-Agent': 'central-login-GHA'}},
       );
 
       core.info(
@@ -97,8 +97,10 @@ async function postWithRetries(
       return result.data['accessToken'];
     } catch (error) {
       lastError = error;
-      if (isRetryableError(error) && attempt < maxRetries) {
-        continue;
+      if (isAxiosError(error)) {
+        if (isRetryableError(error) && attempt < maxRetries) {
+          continue;
+        }
       }
       return Promise.reject(error);
     }
@@ -106,7 +108,7 @@ async function postWithRetries(
   return Promise.reject(lastError);
 }
 
-function isRetryableError(error): boolean {
+function isRetryableError(error: AxiosError): boolean {
   core.warning(error);
   if (error.code === 'ECONNABORTED') {
     return false;
