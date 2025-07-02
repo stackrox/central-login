@@ -5403,14 +5403,17 @@ function useColors() {
 		return false;
 	}
 
+	let m;
+
 	// Is webkit? http://stackoverflow.com/a/16459606/376773
 	// document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
+	// eslint-disable-next-line no-return-assign
 	return (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance) ||
 		// Is firebug? http://stackoverflow.com/a/398120/376773
 		(typeof window !== 'undefined' && window.console && (window.console.firebug || (window.console.exception && window.console.table))) ||
 		// Is firefox >= v31?
 		// https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-		(typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
+		(typeof navigator !== 'undefined' && navigator.userAgent && (m = navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/)) && parseInt(m[1], 10) >= 31) ||
 		// Double check webkit in userAgent just in case we are in a worker
 		(typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
 }
@@ -5720,24 +5723,62 @@ function setup(env) {
 		createDebug.names = [];
 		createDebug.skips = [];
 
-		let i;
-		const split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
-		const len = split.length;
+		const split = (typeof namespaces === 'string' ? namespaces : '')
+			.trim()
+			.replace(' ', ',')
+			.split(',')
+			.filter(Boolean);
 
-		for (i = 0; i < len; i++) {
-			if (!split[i]) {
-				// ignore empty strings
-				continue;
-			}
-
-			namespaces = split[i].replace(/\*/g, '.*?');
-
-			if (namespaces[0] === '-') {
-				createDebug.skips.push(new RegExp('^' + namespaces.slice(1) + '$'));
+		for (const ns of split) {
+			if (ns[0] === '-') {
+				createDebug.skips.push(ns.slice(1));
 			} else {
-				createDebug.names.push(new RegExp('^' + namespaces + '$'));
+				createDebug.names.push(ns);
 			}
 		}
+	}
+
+	/**
+	 * Checks if the given string matches a namespace template, honoring
+	 * asterisks as wildcards.
+	 *
+	 * @param {String} search
+	 * @param {String} template
+	 * @return {Boolean}
+	 */
+	function matchesTemplate(search, template) {
+		let searchIndex = 0;
+		let templateIndex = 0;
+		let starIndex = -1;
+		let matchIndex = 0;
+
+		while (searchIndex < search.length) {
+			if (templateIndex < template.length && (template[templateIndex] === search[searchIndex] || template[templateIndex] === '*')) {
+				// Match character or proceed with wildcard
+				if (template[templateIndex] === '*') {
+					starIndex = templateIndex;
+					matchIndex = searchIndex;
+					templateIndex++; // Skip the '*'
+				} else {
+					searchIndex++;
+					templateIndex++;
+				}
+			} else if (starIndex !== -1) { // eslint-disable-line no-negated-condition
+				// Backtrack to the last '*' and try to match more characters
+				templateIndex = starIndex + 1;
+				matchIndex++;
+				searchIndex = matchIndex;
+			} else {
+				return false; // No match
+			}
+		}
+
+		// Handle trailing '*' in template
+		while (templateIndex < template.length && template[templateIndex] === '*') {
+			templateIndex++;
+		}
+
+		return templateIndex === template.length;
 	}
 
 	/**
@@ -5748,8 +5789,8 @@ function setup(env) {
 	*/
 	function disable() {
 		const namespaces = [
-			...createDebug.names.map(toNamespace),
-			...createDebug.skips.map(toNamespace).map(namespace => '-' + namespace)
+			...createDebug.names,
+			...createDebug.skips.map(namespace => '-' + namespace)
 		].join(',');
 		createDebug.enable('');
 		return namespaces;
@@ -5763,39 +5804,19 @@ function setup(env) {
 	* @api public
 	*/
 	function enabled(name) {
-		if (name[name.length - 1] === '*') {
-			return true;
-		}
-
-		let i;
-		let len;
-
-		for (i = 0, len = createDebug.skips.length; i < len; i++) {
-			if (createDebug.skips[i].test(name)) {
+		for (const skip of createDebug.skips) {
+			if (matchesTemplate(name, skip)) {
 				return false;
 			}
 		}
 
-		for (i = 0, len = createDebug.names.length; i < len; i++) {
-			if (createDebug.names[i].test(name)) {
+		for (const ns of createDebug.names) {
+			if (matchesTemplate(name, ns)) {
 				return true;
 			}
 		}
 
 		return false;
-	}
-
-	/**
-	* Convert regexp to namespace
-	*
-	* @param {RegExp} regxep
-	* @return {String} namespace
-	* @api private
-	*/
-	function toNamespace(regexp) {
-		return regexp.toString()
-			.substring(2, regexp.toString().length - 2)
-			.replace(/\.\*\?$/, '*');
 	}
 
 	/**
@@ -6039,11 +6060,11 @@ function getDate() {
 }
 
 /**
- * Invokes `util.format()` with the specified arguments and writes to stderr.
+ * Invokes `util.formatWithOptions()` with the specified arguments and writes to stderr.
  */
 
 function log(...args) {
-	return process.stderr.write(util.format(...args) + '\n');
+	return process.stderr.write(util.formatWithOptions(exports.inspectOpts, ...args) + '\n');
 }
 
 /**
@@ -7763,7 +7784,7 @@ var y = d * 365.25;
  * @api public
  */
 
-module.exports = function(val, options) {
+module.exports = function (val, options) {
   options = options || {};
   var type = typeof val;
   if (type === 'string' && val.length > 0) {
@@ -30650,22 +30671,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const axios_1 = __importStar(__nccwpck_require__(7269));
-const axios_retry_1 = __importStar(__nccwpck_require__(750));
+const is_retry_allowed_1 = __importDefault(__nccwpck_require__(178));
 const https = __importStar(__nccwpck_require__(5692));
-(0, axios_retry_1.default)(axios_1.default, {
-    retries: 3,
-    retryDelay: retryCount => {
-        core.info(`HTTP request retry attempt: ${retryCount}`);
-        return retryCount * 2000;
-    },
-    retryCondition: error => {
-        core.warning(error);
-        return (0, axios_retry_1.isNetworkError)(error) || (0, axios_retry_1.isRetryableError)(error);
-    }
-});
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b;
@@ -30708,10 +30721,53 @@ function obtainAccessToken(endpoint, skipTLSVerify) {
         const exchangeTokenRequest = {
             id_token: idToken
         };
-        const response = yield axios_1.default.post(endpoint.toString(), JSON.stringify(exchangeTokenRequest), { httpsAgent: agent, headers: { 'User-Agent': 'central-login-GHA' } });
-        core.info(`Received status ${response.status} from endpoint ${endpoint.toString()}`);
-        return response.data['accessToken'];
+        const response = yield postWithRetries(agent, endpoint, JSON.stringify(exchangeTokenRequest), 3, 2000);
+        return response;
     });
+}
+function postWithRetries(agent_1, endpoint_1, payload_1) {
+    return __awaiter(this, arguments, void 0, function* (agent, endpoint, payload, maxRetries = 3, baseDelay = 2000) {
+        let lastError;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                if (attempt > 0) {
+                    core.info(`HTTP request retry attempt: ${attempt}`);
+                    const delay = baseDelay * attempt;
+                    yield new Promise((resolve) => setTimeout(resolve, delay));
+                }
+                const result = yield axios_1.default.post(endpoint.toString(), payload, { httpsAgent: agent, headers: { 'User-Agent': 'central-login-GHA' } });
+                core.info(`Received status ${result.status} from endpoint ${endpoint.toString()}`);
+                return result.data['accessToken'];
+            }
+            catch (error) {
+                lastError = error;
+                if ((0, axios_1.isAxiosError)(error)) {
+                    if (isRetryableError(error) && attempt < maxRetries) {
+                        continue;
+                    }
+                }
+                return Promise.reject(error);
+            }
+        }
+        return Promise.reject(lastError);
+    });
+}
+function isRetryableError(error) {
+    core.warning(error);
+    if (error.code === 'ECONNABORTED') {
+        return false;
+    }
+    if (!error.response) {
+        return true;
+    }
+    const errorStatus = error.response.status;
+    if (errorStatus === 429) {
+        return true;
+    }
+    if (errorStatus >= 500 && errorStatus <= 599) {
+        return true;
+    }
+    return (0, is_retry_allowed_1.default)(error);
 }
 function getHostWithPort(url) {
     let host = url.host;
@@ -30975,261 +31031,15 @@ module.exports = require("zlib");
 
 /***/ }),
 
-/***/ 750:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_OPTIONS = exports.linearDelay = exports.exponentialDelay = exports.retryAfter = exports.isNetworkOrIdempotentRequestError = exports.isIdempotentRequestError = exports.isSafeRequestError = exports.isRetryableError = exports.isNetworkError = exports.namespace = void 0;
-const is_retry_allowed_1 = __importDefault(__nccwpck_require__(178));
-exports.namespace = 'axios-retry';
-function isNetworkError(error) {
-    const CODE_EXCLUDE_LIST = ['ERR_CANCELED', 'ECONNABORTED'];
-    if (error.response) {
-        return false;
-    }
-    if (!error.code) {
-        return false;
-    }
-    // Prevents retrying timed out & cancelled requests
-    if (CODE_EXCLUDE_LIST.includes(error.code)) {
-        return false;
-    }
-    // Prevents retrying unsafe errors
-    return (0, is_retry_allowed_1.default)(error);
-}
-exports.isNetworkError = isNetworkError;
-const SAFE_HTTP_METHODS = ['get', 'head', 'options'];
-const IDEMPOTENT_HTTP_METHODS = SAFE_HTTP_METHODS.concat(['put', 'delete']);
-function isRetryableError(error) {
-    return (error.code !== 'ECONNABORTED' &&
-        (!error.response ||
-            error.response.status === 429 ||
-            (error.response.status >= 500 && error.response.status <= 599)));
-}
-exports.isRetryableError = isRetryableError;
-function isSafeRequestError(error) {
-    var _a;
-    if (!((_a = error.config) === null || _a === void 0 ? void 0 : _a.method)) {
-        // Cannot determine if the request can be retried
-        return false;
-    }
-    return isRetryableError(error) && SAFE_HTTP_METHODS.indexOf(error.config.method) !== -1;
-}
-exports.isSafeRequestError = isSafeRequestError;
-function isIdempotentRequestError(error) {
-    var _a;
-    if (!((_a = error.config) === null || _a === void 0 ? void 0 : _a.method)) {
-        // Cannot determine if the request can be retried
-        return false;
-    }
-    return isRetryableError(error) && IDEMPOTENT_HTTP_METHODS.indexOf(error.config.method) !== -1;
-}
-exports.isIdempotentRequestError = isIdempotentRequestError;
-function isNetworkOrIdempotentRequestError(error) {
-    return isNetworkError(error) || isIdempotentRequestError(error);
-}
-exports.isNetworkOrIdempotentRequestError = isNetworkOrIdempotentRequestError;
-function retryAfter(error = undefined) {
-    var _a;
-    const retryAfterHeader = (_a = error === null || error === void 0 ? void 0 : error.response) === null || _a === void 0 ? void 0 : _a.headers['retry-after'];
-    if (!retryAfterHeader) {
-        return 0;
-    }
-    // if the retry after header is a number, convert it to milliseconds
-    let retryAfterMs = (Number(retryAfterHeader) || 0) * 1000;
-    // If the retry after header is a date, get the number of milliseconds until that date
-    if (retryAfterMs === 0) {
-        retryAfterMs = (new Date(retryAfterHeader).valueOf() || 0) - Date.now();
-    }
-    return Math.max(0, retryAfterMs);
-}
-exports.retryAfter = retryAfter;
-function noDelay(_retryNumber = 0, error = undefined) {
-    return Math.max(0, retryAfter(error));
-}
-function exponentialDelay(retryNumber = 0, error = undefined, delayFactor = 100) {
-    const calculatedDelay = Math.pow(2, retryNumber) * delayFactor;
-    const delay = Math.max(calculatedDelay, retryAfter(error));
-    const randomSum = delay * 0.2 * Math.random(); // 0-20% of the delay
-    return delay + randomSum;
-}
-exports.exponentialDelay = exponentialDelay;
-/**
- * Linear delay
- * @param {number | undefined} delayFactor - delay factor in milliseconds (default: 100)
- * @returns {function} (retryNumber: number, error: AxiosError | undefined) => number
- */
-function linearDelay(delayFactor = 100) {
-    return (retryNumber = 0, error = undefined) => {
-        const delay = retryNumber * delayFactor;
-        return Math.max(delay, retryAfter(error));
-    };
-}
-exports.linearDelay = linearDelay;
-exports.DEFAULT_OPTIONS = {
-    retries: 3,
-    retryCondition: isNetworkOrIdempotentRequestError,
-    retryDelay: noDelay,
-    shouldResetTimeout: false,
-    onRetry: () => { },
-    onMaxRetryTimesExceeded: () => { },
-    validateResponse: null
-};
-function getRequestOptions(config, defaultOptions) {
-    return Object.assign(Object.assign(Object.assign({}, exports.DEFAULT_OPTIONS), defaultOptions), config[exports.namespace]);
-}
-function setCurrentState(config, defaultOptions, resetLastRequestTime = false) {
-    const currentState = getRequestOptions(config, defaultOptions || {});
-    currentState.retryCount = currentState.retryCount || 0;
-    if (!currentState.lastRequestTime || resetLastRequestTime) {
-        currentState.lastRequestTime = Date.now();
-    }
-    config[exports.namespace] = currentState;
-    return currentState;
-}
-function fixConfig(axiosInstance, config) {
-    // @ts-ignore
-    if (axiosInstance.defaults.agent === config.agent) {
-        // @ts-ignore
-        delete config.agent;
-    }
-    if (axiosInstance.defaults.httpAgent === config.httpAgent) {
-        delete config.httpAgent;
-    }
-    if (axiosInstance.defaults.httpsAgent === config.httpsAgent) {
-        delete config.httpsAgent;
-    }
-}
-function shouldRetry(currentState, error) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { retries, retryCondition } = currentState;
-        const shouldRetryOrPromise = (currentState.retryCount || 0) < retries && retryCondition(error);
-        // This could be a promise
-        if (typeof shouldRetryOrPromise === 'object') {
-            try {
-                const shouldRetryPromiseResult = yield shouldRetryOrPromise;
-                // keep return true unless shouldRetryPromiseResult return false for compatibility
-                return shouldRetryPromiseResult !== false;
-            }
-            catch (_err) {
-                return false;
-            }
-        }
-        return shouldRetryOrPromise;
-    });
-}
-function handleRetry(axiosInstance, currentState, error, config) {
-    var _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        currentState.retryCount += 1;
-        const { retryDelay, shouldResetTimeout, onRetry } = currentState;
-        const delay = retryDelay(currentState.retryCount, error);
-        // Axios fails merging this configuration to the default configuration because it has an issue
-        // with circular structures: https://github.com/mzabriskie/axios/issues/370
-        fixConfig(axiosInstance, config);
-        if (!shouldResetTimeout && config.timeout && currentState.lastRequestTime) {
-            const lastRequestDuration = Date.now() - currentState.lastRequestTime;
-            const timeout = config.timeout - lastRequestDuration - delay;
-            if (timeout <= 0) {
-                return Promise.reject(error);
-            }
-            config.timeout = timeout;
-        }
-        config.transformRequest = [(data) => data];
-        yield onRetry(currentState.retryCount, error, config);
-        if ((_a = config.signal) === null || _a === void 0 ? void 0 : _a.aborted) {
-            return Promise.resolve(axiosInstance(config));
-        }
-        return new Promise((resolve) => {
-            var _a;
-            const abortListener = () => {
-                clearTimeout(timeout);
-                resolve(axiosInstance(config));
-            };
-            const timeout = setTimeout(() => {
-                var _a;
-                resolve(axiosInstance(config));
-                if ((_a = config.signal) === null || _a === void 0 ? void 0 : _a.removeEventListener) {
-                    config.signal.removeEventListener('abort', abortListener);
-                }
-            }, delay);
-            if ((_a = config.signal) === null || _a === void 0 ? void 0 : _a.addEventListener) {
-                config.signal.addEventListener('abort', abortListener, { once: true });
-            }
-        });
-    });
-}
-function handleMaxRetryTimesExceeded(currentState, error) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (currentState.retryCount >= currentState.retries)
-            yield currentState.onMaxRetryTimesExceeded(error, currentState.retryCount);
-    });
-}
-const axiosRetry = (axiosInstance, defaultOptions) => {
-    const requestInterceptorId = axiosInstance.interceptors.request.use((config) => {
-        var _a;
-        setCurrentState(config, defaultOptions, true);
-        if ((_a = config[exports.namespace]) === null || _a === void 0 ? void 0 : _a.validateResponse) {
-            // by setting this, all HTTP responses will be go through the error interceptor first
-            config.validateStatus = () => false;
-        }
-        return config;
-    });
-    const responseInterceptorId = axiosInstance.interceptors.response.use(null, (error) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
-        const { config } = error;
-        // If we have no information to retry the request
-        if (!config) {
-            return Promise.reject(error);
-        }
-        const currentState = setCurrentState(config, defaultOptions);
-        if (error.response && ((_a = currentState.validateResponse) === null || _a === void 0 ? void 0 : _a.call(currentState, error.response))) {
-            // no issue with response
-            return error.response;
-        }
-        if (yield shouldRetry(currentState, error)) {
-            return handleRetry(axiosInstance, currentState, error, config);
-        }
-        yield handleMaxRetryTimesExceeded(currentState, error);
-        return Promise.reject(error);
-    }));
-    return { requestInterceptorId, responseInterceptorId };
-};
-// Compatibility with CommonJS
-axiosRetry.isNetworkError = isNetworkError;
-axiosRetry.isSafeRequestError = isSafeRequestError;
-axiosRetry.isIdempotentRequestError = isIdempotentRequestError;
-axiosRetry.isNetworkOrIdempotentRequestError = isNetworkOrIdempotentRequestError;
-axiosRetry.exponentialDelay = exponentialDelay;
-axiosRetry.linearDelay = linearDelay;
-axiosRetry.isRetryableError = isRetryableError;
-exports["default"] = axiosRetry;
-
-
-/***/ }),
-
 /***/ 7269:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
-// Axios v1.7.8 Copyright (c) 2024 Matt Zabriskie and contributors
+/*! Axios v1.10.0 Copyright (c) 2025 Matt Zabriskie and contributors */
 
 
 const FormData$1 = __nccwpck_require__(6454);
+const crypto = __nccwpck_require__(6982);
 const url = __nccwpck_require__(7016);
 const proxyFromEnv = __nccwpck_require__(7777);
 const http = __nccwpck_require__(8611);
@@ -31243,6 +31053,7 @@ const events = __nccwpck_require__(4434);
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
 const FormData__default = /*#__PURE__*/_interopDefaultLegacy(FormData$1);
+const crypto__default = /*#__PURE__*/_interopDefaultLegacy(crypto);
 const url__default = /*#__PURE__*/_interopDefaultLegacy(url);
 const proxyFromEnv__default = /*#__PURE__*/_interopDefaultLegacy(proxyFromEnv);
 const http__default = /*#__PURE__*/_interopDefaultLegacy(http);
@@ -31262,6 +31073,7 @@ function bind(fn, thisArg) {
 
 const {toString} = Object.prototype;
 const {getPrototypeOf} = Object;
+const {iterator, toStringTag} = Symbol;
 
 const kindOf = (cache => thing => {
     const str = toString.call(thing);
@@ -31388,7 +31200,7 @@ const isPlainObject = (val) => {
   }
 
   const prototype = getPrototypeOf(val);
-  return (prototype === null || prototype === Object.prototype || Object.getPrototypeOf(prototype) === null) && !(Symbol.toStringTag in val) && !(Symbol.iterator in val);
+  return (prototype === null || prototype === Object.prototype || Object.getPrototypeOf(prototype) === null) && !(toStringTag in val) && !(iterator in val);
 };
 
 /**
@@ -31739,13 +31551,13 @@ const isTypedArray = (TypedArray => {
  * @returns {void}
  */
 const forEachEntry = (obj, fn) => {
-  const generator = obj && obj[Symbol.iterator];
+  const generator = obj && obj[iterator];
 
-  const iterator = generator.call(obj);
+  const _iterator = generator.call(obj);
 
   let result;
 
-  while ((result = iterator.next()) && !result.done) {
+  while ((result = _iterator.next()) && !result.done) {
     const pair = result.value;
     fn.call(obj, pair[0], pair[1]);
   }
@@ -31858,26 +31670,6 @@ const toFiniteNumber = (value, defaultValue) => {
   return value != null && Number.isFinite(value = +value) ? value : defaultValue;
 };
 
-const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
-
-const DIGIT = '0123456789';
-
-const ALPHABET = {
-  DIGIT,
-  ALPHA,
-  ALPHA_DIGIT: ALPHA + ALPHA.toUpperCase() + DIGIT
-};
-
-const generateString = (size = 16, alphabet = ALPHABET.ALPHA_DIGIT) => {
-  let str = '';
-  const {length} = alphabet;
-  while (size--) {
-    str += alphabet[Math.random() * length|0];
-  }
-
-  return str;
-};
-
 /**
  * If the thing is a FormData object, return true, otherwise return false.
  *
@@ -31886,7 +31678,7 @@ const generateString = (size = 16, alphabet = ALPHABET.ALPHA_DIGIT) => {
  * @returns {boolean}
  */
 function isSpecCompliantForm(thing) {
-  return !!(thing && isFunction(thing.append) && thing[Symbol.toStringTag] === 'FormData' && thing[Symbol.iterator]);
+  return !!(thing && isFunction(thing.append) && thing[toStringTag] === 'FormData' && thing[iterator]);
 }
 
 const toJSONObject = (obj) => {
@@ -31955,6 +31747,10 @@ const asap = typeof queueMicrotask !== 'undefined' ?
 
 // *********************
 
+
+const isIterable = (thing) => thing != null && isFunction(thing[iterator]);
+
+
 const utils$1 = {
   isArray,
   isArrayBuffer,
@@ -32005,14 +31801,13 @@ const utils$1 = {
   findKey,
   global: _global,
   isContextDefined,
-  ALPHABET,
-  generateString,
   isSpecCompliantForm,
   toJSONObject,
   isAsyncFn,
   isThenable,
   setImmediate: _setImmediate,
-  asap
+  asap,
+  isIterable
 };
 
 /**
@@ -32226,6 +32021,10 @@ function toFormData(obj, formData, options) {
 
     if (utils$1.isDate(value)) {
       return value.toISOString();
+    }
+
+    if (utils$1.isBoolean(value)) {
+      return value.toString();
     }
 
     if (!useBlob && utils$1.isBlob(value)) {
@@ -32518,6 +32317,29 @@ const transitionalDefaults = {
 
 const URLSearchParams = url__default["default"].URLSearchParams;
 
+const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
+
+const DIGIT = '0123456789';
+
+const ALPHABET = {
+  DIGIT,
+  ALPHA,
+  ALPHA_DIGIT: ALPHA + ALPHA.toUpperCase() + DIGIT
+};
+
+const generateString = (size = 16, alphabet = ALPHABET.ALPHA_DIGIT) => {
+  let str = '';
+  const {length} = alphabet;
+  const randomValues = new Uint32Array(size);
+  crypto__default["default"].randomFillSync(randomValues);
+  for (let i = 0; i < size; i++) {
+    str += alphabet[randomValues[i] % length];
+  }
+
+  return str;
+};
+
+
 const platform$1 = {
   isNode: true,
   classes: {
@@ -32525,6 +32347,8 @@ const platform$1 = {
     FormData: FormData__default["default"],
     Blob: typeof Blob !== 'undefined' && Blob || null
   },
+  ALPHABET,
+  generateString,
   protocols: [ 'http', 'https', 'file', 'data' ]
 };
 
@@ -32990,10 +32814,18 @@ class AxiosHeaders {
       setHeaders(header, valueOrRewrite);
     } else if(utils$1.isString(header) && (header = header.trim()) && !isValidHeaderName(header)) {
       setHeaders(parseHeaders(header), valueOrRewrite);
-    } else if (utils$1.isHeaders(header)) {
-      for (const [key, value] of header.entries()) {
-        setHeader(value, key, rewrite);
+    } else if (utils$1.isObject(header) && utils$1.isIterable(header)) {
+      let obj = {}, dest, key;
+      for (const entry of header) {
+        if (!utils$1.isArray(entry)) {
+          throw TypeError('Object iterator must return a key-value pair');
+        }
+
+        obj[key = entry[0]] = (dest = obj[key]) ?
+          (utils$1.isArray(dest) ? [...dest, entry[1]] : [dest, entry[1]]) : entry[1];
       }
+
+      setHeaders(obj, valueOrRewrite);
     } else {
       header != null && setHeader(valueOrRewrite, header, rewrite);
     }
@@ -33133,6 +32965,10 @@ class AxiosHeaders {
 
   toString() {
     return Object.entries(this.toJSON()).map(([header, value]) => header + ': ' + value).join('\n');
+  }
+
+  getSetCookie() {
+    return this.get("set-cookie") || [];
   }
 
   get [Symbol.toStringTag]() {
@@ -33299,14 +33135,15 @@ function combineURLs(baseURL, relativeURL) {
  *
  * @returns {string} The combined full path
  */
-function buildFullPath(baseURL, requestedURL) {
-  if (baseURL && !isAbsoluteURL(requestedURL)) {
+function buildFullPath(baseURL, requestedURL, allowAbsoluteUrls) {
+  let isRelativeUrl = !isAbsoluteURL(requestedURL);
+  if (baseURL && (isRelativeUrl || allowAbsoluteUrls == false)) {
     return combineURLs(baseURL, requestedURL);
   }
   return requestedURL;
 }
 
-const VERSION = "1.7.8";
+const VERSION = "1.10.0";
 
 function parseProtocol(url) {
   const match = /^([-+\w]{1,25})(:?\/\/|:)/.exec(url);
@@ -33516,7 +33353,7 @@ const readBlob = async function* (blob) {
 
 const readBlob$1 = readBlob;
 
-const BOUNDARY_ALPHABET = utils$1.ALPHABET.ALPHA_DIGIT + '-_';
+const BOUNDARY_ALPHABET = platform.ALPHABET.ALPHA_DIGIT + '-_';
 
 const textEncoder = typeof TextEncoder === 'function' ? new TextEncoder() : new util__default["default"].TextEncoder();
 
@@ -33576,7 +33413,7 @@ const formDataToStream = (form, headersHandler, options) => {
   const {
     tag = 'form-data-boundary',
     size = 25,
-    boundary = tag + '-' + utils$1.generateString(size, BOUNDARY_ALPHABET)
+    boundary = tag + '-' + platform.generateString(size, BOUNDARY_ALPHABET)
   } = options || {};
 
   if(!utils$1.isFormData(form)) {
@@ -33588,7 +33425,7 @@ const formDataToStream = (form, headersHandler, options) => {
   }
 
   const boundaryBytes = textEncoder.encode('--' + boundary + CRLF);
-  const footerBytes = textEncoder.encode('--' + boundary + '--' + CRLF + CRLF);
+  const footerBytes = textEncoder.encode('--' + boundary + '--' + CRLF);
   let contentLength = footerBytes.byteLength;
 
   const parts = Array.from(form.entries()).map(([name, value]) => {
@@ -34001,7 +33838,7 @@ const httpAdapter = isHttpAdapterSupported && function httpAdapter(config) {
     }
 
     // Parse url
-    const fullPath = buildFullPath(config.baseURL, config.url);
+    const fullPath = buildFullPath(config.baseURL, config.url, config.allowAbsoluteUrls);
     const parsed = new URL(fullPath, platform.hasBrowserEnv ? platform.origin : undefined);
     const protocol = parsed.protocol || supportedProtocols[0];
 
@@ -34624,7 +34461,7 @@ const resolveConfig = (config) => {
 
   newConfig.headers = headers = AxiosHeaders$1.from(headers);
 
-  newConfig.url = buildURL(buildFullPath(newConfig.baseURL, newConfig.url), config.params, config.paramsSerializer);
+  newConfig.url = buildURL(buildFullPath(newConfig.baseURL, newConfig.url, newConfig.allowAbsoluteUrls), config.params, config.paramsSerializer);
 
   // HTTP basic authentication
   if (auth) {
@@ -35143,7 +34980,7 @@ const fetchAdapter = isFetchSupported && (async (config) => {
       credentials: isCredentialsSupported ? withCredentials : undefined
     });
 
-    let response = await fetch(request);
+    let response = await fetch(request, fetchOptions);
 
     const isStreamResponse = supportsResponseStream && (responseType === 'stream' || responseType === 'response');
 
@@ -35189,7 +35026,7 @@ const fetchAdapter = isFetchSupported && (async (config) => {
   } catch (err) {
     unsubscribe && unsubscribe();
 
-    if (err && err.name === 'TypeError' && /fetch/i.test(err.message)) {
+    if (err && err.name === 'TypeError' && /Load failed|fetch/i.test(err.message)) {
       throw Object.assign(
         new AxiosError('Network Error', AxiosError.ERR_NETWORK, config, request),
         {
@@ -35455,7 +35292,7 @@ const validators = validator.validators;
  */
 class Axios {
   constructor(instanceConfig) {
-    this.defaults = instanceConfig;
+    this.defaults = instanceConfig || {};
     this.interceptors = {
       request: new InterceptorManager$1(),
       response: new InterceptorManager$1()
@@ -35530,6 +35367,13 @@ class Axios {
           serialize: validators.function
         }, true);
       }
+    }
+
+    // Set config.allowAbsoluteUrls
+    if (config.allowAbsoluteUrls !== undefined) ; else if (this.defaults.allowAbsoluteUrls !== undefined) {
+      config.allowAbsoluteUrls = this.defaults.allowAbsoluteUrls;
+    } else {
+      config.allowAbsoluteUrls = true;
     }
 
     validator.assertOptions(config, {
@@ -35627,7 +35471,7 @@ class Axios {
 
   getUri(config) {
     config = mergeConfig(this.defaults, config);
-    const fullPath = buildFullPath(config.baseURL, config.url);
+    const fullPath = buildFullPath(config.baseURL, config.url, config.allowAbsoluteUrls);
     return buildURL(fullPath, config.params, config.paramsSerializer);
   }
 }
