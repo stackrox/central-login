@@ -98,8 +98,7 @@ async function postWithRetries(
     } catch (error) {
       lastError = error;
       if (isAxiosError(error)) {
-        const axiosErr: AxiosError = error as AxiosError;
-        if (isRetryableError(axiosErr) && attempt < maxRetries) {
+        if (isRetryableError(error) && attempt < maxRetries) {
           continue;
         }
       }
