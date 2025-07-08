@@ -8,46 +8,40 @@ on:
   schedule:
     - cron: '0 5 * * 0'
 
+env:
+  ROX_URL: 'https://central.stackrox:8000'
+
 jobs:
   e2e:
-    if: contains(github.event.pull_request.labels.*.name, 'e2e') || github.ref == 'refs/heads/main'
     name: E2E
     runs-on: ubuntu-latest
     permissions:
       id-token: write # Required for the central-login action which we will test.
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup infractl
-        uses: stackrox/actions/infra/install-infractl@main
-
-      - name: Create GKE infra cluster
-        uses: stackrox/actions/infra/create-cluster@v1.0.22
+      
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1
+      
+      - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.INFRA_TOKEN }}
-          flavor: qa-demo
-          name: central-login-${{ github.run_id }}
-          lifespan: 1h
-          args: main-image=quay.io/stackrox-io/main:4.6.1
-          wait: "true"
-          no-slack: "true"
-
-      - name: Setup environment from cluster artifacts
+          repository: stackrox/stackrox
+          path: stackrox
+      
+      - name: Install Stackrox
         env:
-          CLUSTER_NAME: central-login-${{ github.run_id }}
-          INFRA_TOKEN: ${{ secrets.INFRA_TOKEN }}
-          ARTIFACTS_DIR: ${{ runner.temp }}/gke-artifacts
+          MAIN_IMAGE_TAG: "latest"
+          SENSOR_HELM_DEPLOY: "true"
+          ROX_SCANNER_V4: "false"
         run: |
-          # Fetch the artifacts for the GKE cluster.
-          infractl artifacts --download-dir=${ARTIFACTS_DIR} ${CLUSTER_NAME} >/dev/null
-          # Set both URL and admin password.
-          ROX_PASSWORD=$(cat ${ARTIFACTS_DIR}/admin-password)
-          ROX_URL=$(cat ${ARTIFACTS_DIR}/url)
+          stackrox/deploy/k8s/deploy-local.sh
+          ROX_PASSWORD=$(cat stackrox/deploy/k8s/central-deploy/password)
           echo "::add-mask::$ROX_PASSWORD"
-          echo "::add-mask::$ROX_URL"
           echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
-          echo "ROX_URL=$ROX_URL" >> $GITHUB_ENV
-
+      
+      - name: Add stackrox certificate
+        run: scripts/set-certificates.sh
+          
       - name: Add machine to machine configuration in Central
         run: |
           curl -u admin:${ROX_PASSWORD} \
