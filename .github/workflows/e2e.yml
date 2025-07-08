@@ -9,7 +9,7 @@ on:
     - cron: '0 5 * * 0'
 
 env:
-  ROX_URL: 'https://central.stackrox:8000'
+  ROX_URL: 'https://127.0.0.1:8000'
 
 jobs:
   e2e:
@@ -39,10 +39,6 @@ jobs:
           echo "::add-mask::$ROX_PASSWORD"
           echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
 
-      - name: Add hosts to /etc/hosts
-        run: |
-          sudo echo "127.0.0.1 ${ROX_URL}" | sudo tee -a /etc/hosts
-        
       - name: Add machine to machine configuration in Central
         run: |
           curl -u admin:${ROX_PASSWORD} \
