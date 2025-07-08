@@ -19,6 +19,10 @@ jobs:
       id-token: write # Required for the central-login action which we will test.
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up hostname
+        run: |
+          echo "127.0.0.1 ${ROX_URL}" | sudo tee -a /etc/hosts >/dev/null
       
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
@@ -60,6 +64,5 @@ jobs:
 
       - name: Check the current user with roxctl
         run: |
-          echo "127.0.0.1 ${ROX_URL}" | sudo tee -a /etc/hosts >/dev/null
           roxctl central cert --output ca.pem
           roxctl central whoami --ca ca.pem
