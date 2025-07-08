@@ -59,6 +59,6 @@ jobs:
           skip-tls-verify: true
 
       - name: Check the current user with roxctl
-        run: >
+        run: |
           roxctl central cert --output ca.pem
           roxctl central whoami --ca ca.pem
