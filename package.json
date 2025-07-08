@@ -18,7 +18,7 @@
     "@actions/core": "^1.11.1",
     "@actions/http-client": "^2.2.3",
     "axios": "^1.10.0",
-    "is-retry-allowed": "^2.2.0"
+    "is-retry-allowed": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.8",
