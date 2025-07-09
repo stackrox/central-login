@@ -9,7 +9,8 @@ on:
     - cron: '0 5 * * 0'
 
 env:
-  ROX_URL: 'https://central.stackrox:8000'
+  ROX_HOST: 'central.stackrox'
+  ROX_URL: 'https://${env.ROX_HOST}:8000'
 
 jobs:
   e2e:
@@ -22,7 +23,7 @@ jobs:
 
       - name: Set up hostname
         run: |
-          echo "127.0.0.1 central.stackrox" | sudo tee -a /etc/hosts >/dev/null
+          echo "127.0.0.1 ${env.ROX_HOST}" | sudo tee -a /etc/hosts >/dev/null
       
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
@@ -43,6 +44,15 @@ jobs:
           echo "::add-mask::$ROX_PASSWORD"
           echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
 
+      - name: Install certificate
+        run: |
+          sudo -i
+          echo | \
+            openssl s_client -showcerts -servername ${env.ROX_HOST} -connect ${env.ROX_HOST}:8000 2>/dev/null | \
+            awk '/-----BEGIN CERTIFICATE-----/, /-----END CERTIFICATE-----/' >> \
+            /usr/local/share/ca-certificates/ca-certificates.crt 
+          update-ca-certificates
+
       - name: Add machine to machine configuration in Central
         run: |
           curl -u admin:${ROX_PASSWORD} \
@@ -53,16 +63,13 @@ jobs:
         uses: ./
         with:
           endpoint: ${{ env.ROX_URL }}
-          skip-tls-verify: true
 
       - name: Install roxctl
         uses: stackrox/roxctl-installer-action@v1
         with:
           central-endpoint: ${{ env.ROX_URL }}
           central-token: ${{ env.ROX_API_TOKEN }}
-          skip-tls-verify: true
 
       - name: Check the current user with roxctl
         run: |
-          roxctl central cert --output ca.pem
           roxctl central whoami --ca ca.pem
