@@ -46,12 +46,11 @@ jobs:
 
       - name: Install certificate
         run: |
-          sudo -i
           echo | \
-            openssl s_client -showcerts -servername ${env.ROX_HOST} -connect ${env.ROX_HOST}:8000 2>/dev/null | \
-            awk '/-----BEGIN CERTIFICATE-----/, /-----END CERTIFICATE-----/' >> \
-            /usr/local/share/ca-certificates/ca-certificates.crt 
-          update-ca-certificates
+            openssl s_client -showcerts -servername $ROX_HOST -connect $ROX_HOST:8000 2>/dev/null | \
+            awk '/-----BEGIN CERTIFICATE-----/, /-----END CERTIFICATE-----/' | \
+            sudo tee -a /usr/local/share/ca-certificates/ca-certificates.crt > /dev/null
+          sudo update-ca-certificates
 
       - name: Add machine to machine configuration in Central
         run: |
