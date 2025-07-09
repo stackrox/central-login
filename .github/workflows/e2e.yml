@@ -10,7 +10,7 @@ on:
 
 env:
   ROX_HOST: 'central.stackrox'
-  ROX_URL: 'https://${env.ROX_HOST}:8000'
+  ROX_PORT: 8000
 
 jobs:
   e2e:
@@ -43,6 +43,7 @@ jobs:
           ROX_PASSWORD=$(cat stackrox/deploy/k8s/central-deploy/password)
           echo "::add-mask::$ROX_PASSWORD"
           echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
+          echo "ROX_URL=https://${ROX_HOST}:${ROX_PORT}" >> $GITHUB_ENV
 
       - name: Install and trust Central certificate
         run: |
