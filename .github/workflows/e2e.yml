@@ -23,7 +23,7 @@ jobs:
 
       - name: Set up hostname
         run: |
-          echo "127.0.0.1 ${env.ROX_HOST}" | sudo tee -a /etc/hosts >/dev/null
+          echo "127.0.0.1 ${ROX_HOST}" | sudo tee -a /etc/hosts >/dev/null
       
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
