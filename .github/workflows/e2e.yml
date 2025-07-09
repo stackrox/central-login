@@ -22,7 +22,7 @@ jobs:
 
       - name: Set up hostname
         run: |
-          echo "127.0.0.1 ${ROX_URL}" | sudo tee -a /etc/hosts >/dev/null
+          echo "127.0.0.1 central.stackrox" | sudo tee -a /etc/hosts >/dev/null
       
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
