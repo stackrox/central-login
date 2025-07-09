@@ -44,12 +44,15 @@ jobs:
           echo "::add-mask::$ROX_PASSWORD"
           echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
 
-      - name: Install certificate
+      - name: Install and trust Central certificate
         run: |
+          # Extract the server certificate and save it as a new CA file
           echo | \
             openssl s_client -showcerts -servername $ROX_HOST -connect $ROX_HOST:8000 2>/dev/null | \
-            awk '/-----BEGIN CERTIFICATE-----/, /-----END CERTIFICATE-----/ { print } /-----END CERTIFICATE-----/ { print ""; }' > rox-central.crt
-          sudo cp rox-central.crt /usr/local/share/ca-certificates/
+            awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ { print $0 }' > central.crt
+
+          # Install the certificate into the system trust store
+          sudo cp central.crt /usr/local/share/ca-certificates/central.crt
           sudo update-ca-certificates
 
       - name: Add machine to machine configuration in Central
