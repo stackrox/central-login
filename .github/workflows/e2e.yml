@@ -60,7 +60,20 @@ jobs:
         run: |
           curl -u admin:${ROX_PASSWORD} \
           ${ROX_URL}/v1/auth/m2m \
-          -v -d '{"config": {"type": "GITHUB_ACTIONS", "tokenExpirationDuration": "5m", "mappings":[{"key":"sub","valueExpression":"repo:stackrox/central-login.*", "role":"Analyst"}]}}'
+          -d \
+          '{
+            "config": {
+              "type": "GITHUB_ACTIONS",
+              "tokenExpirationDuration": "5m",
+              "mappings": [
+                {
+                  "key": "sub",
+                  "valueExpression": "repo:stackrox/central-login.*",
+                  "role": "Analyst"
+                }
+              ]
+            }
+          }'
 
       - name: Run central-login action
         uses: ./
