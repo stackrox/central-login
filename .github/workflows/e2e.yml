@@ -75,4 +75,4 @@ jobs:
 
       - name: Check the current user with roxctl
         run: |
-          roxctl central whoami --ca ca.pem
+          roxctl central whoami
