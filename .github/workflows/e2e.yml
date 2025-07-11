@@ -9,6 +9,7 @@ on:
     - cron: '0 5 * * 0'
 
 env:
+  # The certificate is valid for this host so in order to use "secure" mode we add this to hosts and use for calling central 
   ROX_HOST: 'central.stackrox'
   ROX_PORT: 8000
 
