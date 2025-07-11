@@ -8,9 +8,13 @@ on:
   schedule:
     - cron: '0 5 * * 0'
 
+env:
+  # The certificate is valid for this host so in order to use "secure" mode we add this to hosts and use for calling central 
+  ROX_HOST: 'central.stackrox'
+  ROX_PORT: 8000
+
 jobs:
   e2e:
-    if: contains(github.event.pull_request.labels.*.name, 'e2e') || github.ref == 'refs/heads/main'
     name: E2E
     runs-on: ubuntu-latest
     permissions:
@@ -18,54 +22,70 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup infractl
-        uses: stackrox/actions/infra/install-infractl@main
-
-      - name: Create GKE infra cluster
-        uses: stackrox/actions/infra/create-cluster@v1.0.22
-        with:
-          token: ${{ secrets.INFRA_TOKEN }}
-          flavor: qa-demo
-          name: central-login-${{ github.run_id }}
-          lifespan: 1h
-          args: main-image=quay.io/stackrox-io/main:4.6.1
-          wait: "true"
-          no-slack: "true"
-
-      - name: Setup environment from cluster artifacts
-        env:
-          CLUSTER_NAME: central-login-${{ github.run_id }}
-          INFRA_TOKEN: ${{ secrets.INFRA_TOKEN }}
-          ARTIFACTS_DIR: ${{ runner.temp }}/gke-artifacts
+      - name: Set up hostname
         run: |
-          # Fetch the artifacts for the GKE cluster.
-          infractl artifacts --download-dir=${ARTIFACTS_DIR} ${CLUSTER_NAME} >/dev/null
-          # Set both URL and admin password.
-          ROX_PASSWORD=$(cat ${ARTIFACTS_DIR}/admin-password)
-          ROX_URL=$(cat ${ARTIFACTS_DIR}/url)
+          echo "127.0.0.1 ${ROX_HOST}" | sudo tee -a /etc/hosts >/dev/null
+      
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1
+      
+      - uses: actions/checkout@v4
+        with:
+          repository: stackrox/stackrox
+          path: stackrox
+      
+      - name: Install Stackrox
+        env:
+          MAIN_IMAGE_TAG: "latest"
+          SENSOR_HELM_DEPLOY: "true"
+          ROX_SCANNER_V4: "false"
+        run: |
+          stackrox/deploy/k8s/deploy-local.sh
+          ROX_PASSWORD=$(cat stackrox/deploy/k8s/central-deploy/password)
           echo "::add-mask::$ROX_PASSWORD"
-          echo "::add-mask::$ROX_URL"
           echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
-          echo "ROX_URL=$ROX_URL" >> $GITHUB_ENV
+          echo "ROX_URL=https://${ROX_HOST}:${ROX_PORT}" >> $GITHUB_ENV
+
+      - name: Install and trust Central certificate
+        run: |
+          # Extract the server certificate and save it as a new CA file
+          echo | \
+            openssl s_client -showcerts -servername $ROX_HOST -connect $ROX_HOST:8000 2>/dev/null | \
+            awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ { print $0 }' > central.crt
+
+          # Install the certificate into the system trust store
+          sudo cp central.crt /usr/local/share/ca-certificates/central.crt
+          sudo update-ca-certificates
 
       - name: Add machine to machine configuration in Central
         run: |
           curl -u admin:${ROX_PASSWORD} \
           ${ROX_URL}/v1/auth/m2m \
-          -k -d '{"config": {"type": "GITHUB_ACTIONS", "tokenExpirationDuration": "5m", "mappings":[{"key":"sub","valueExpression":"repo:stackrox/central-login.*", "role":"Analyst"}]}}'
+          -d \
+          '{
+            "config": {
+              "type": "GITHUB_ACTIONS",
+              "tokenExpirationDuration": "5m",
+              "mappings": [
+                {
+                  "key": "sub",
+                  "valueExpression": "repo:stackrox/central-login.*",
+                  "role": "Analyst"
+                }
+              ]
+            }
+          }'
 
       - name: Run central-login action
         uses: ./
         with:
           endpoint: ${{ env.ROX_URL }}
-          skip-tls-verify: true
 
       - name: Install roxctl
         uses: stackrox/roxctl-installer-action@v1
         with:
           central-endpoint: ${{ env.ROX_URL }}
           central-token: ${{ env.ROX_API_TOKEN }}
-          skip-tls-verify: true
 
       - name: Check the current user with roxctl
         run: |
