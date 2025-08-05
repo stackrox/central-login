@@ -36,10 +36,11 @@ jobs:
       
       - name: Install Stackrox
         env:
-          MAIN_IMAGE_TAG: "4.9.x-370-gab2837a3e4"
+          MAIN_IMAGE_TAG: "4.9.x-348-geb062439b6"
           SENSOR_HELM_DEPLOY: "true"
           ROX_SCANNER_V4: "false"
         run: |
+          unset CI
           stackrox/deploy/k8s/deploy-local.sh
           ROX_PASSWORD=$(cat stackrox/deploy/k8s/central-deploy/password)
           echo "::add-mask::$ROX_PASSWORD"
