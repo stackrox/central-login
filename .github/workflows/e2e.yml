@@ -36,7 +36,7 @@ jobs:
       
       - name: Install Stackrox
         env:
-          MAIN_IMAGE_TAG: "4.9.x-331-gaf4718c2b0"
+          MAIN_IMAGE_TAG: "4.9.x-334-gb6f2216e90"
           SENSOR_HELM_DEPLOY: "true"
           ROX_SCANNER_V4: "false"
         run: |
