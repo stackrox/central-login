@@ -20,7 +20,7 @@ jobs:
       GITSIGN_LOG: "/tmp/gitsign.log"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.RHACS_BOT_GITHUB_TOKEN }}
           ref: ${{ github.ref_name }}
