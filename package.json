@@ -15,7 +15,7 @@
   "author": "Red Hat",
   "license": "Apache-2.0",
   "dependencies": {
-    "@actions/core": "^1.11.1",
+    "@actions/core": "^2.0.0",
     "@actions/http-client": "^3.0.0",
     "axios": "^1.13.2",
     "is-retry-allowed": "^3.0.0"
