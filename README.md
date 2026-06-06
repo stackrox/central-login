@@ -15,15 +15,17 @@ This is as simple as adding the following step to your workflow:
     - name: Central Login
       uses: stackrox/central-login@v1
       with:
+        audience: central.stackrox.io
         endpoint: https://<central-endpoint>:443
 ```
 
 ## Parameters
 
-| Parameter name    | Required?      | Description                                                      |
-|-------------------|----------------|------------------------------------------------------------------|
-| `endpoint`        | **(required)** | API endpoint of the ACS Central instance.                        |
-| `skip-tls-verify` | (optional)     | Skip TLS certificat verification for ACS Central's API endpoint. |
+| Parameter name    | Required?      | Description                                                          |
+|-------------------|----------------|----------------------------------------------------------------------|
+| `audience`        | (optional)     | Custom audience for the GitHub OIDC identity token request. Must match the expected audience configured in the Central machine-to-machine authentication integration. When left empty, the default GitHub audience is used. |
+| `endpoint`        | **(required)** | API endpoint of the ACS Central instance.                            |
+| `skip-tls-verify` | (optional)     | Skip TLS certificat verification for ACS Central's API endpoint.     |
 
 ## Overview
 
@@ -57,6 +59,7 @@ curl \
   {
     "config": {
       "type": "GITHUB_ACTIONS",
+      "audience": "central.stackrox.io",
       "tokenExpirationDuration": "5m", // This can be used to specify the expiration of the exchanged access token.
       "mappings": [ // Mappings configure which token claims to map to which roles within the ACS Central instance.
         {
@@ -87,6 +90,7 @@ add the following step to your workflow:
     - name: Central Login
       uses: stackrox/central-login@v1
       with:
+        audience: central.stackrox.io
         endpoint: https://<central-endpoint>:443
 ```
 
@@ -101,6 +105,7 @@ For verifying everything works correctly, the example below can be used:
     - name: Login to Central
       uses: stackrox/central-login@v1
       with:
+        audience: central.stackrox.io
         endpoint: https://<central-endpoint>:443
 
     - name: Install roxctl from Central

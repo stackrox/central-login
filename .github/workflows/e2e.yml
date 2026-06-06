@@ -9,7 +9,7 @@ on:
     - cron: '0 5 * * 0'
 
 env:
-  # The certificate is valid for this host so in order to use "secure" mode we add this to hosts and use for calling central 
+  # The certificate is valid for this host so in order to use "secure" mode we add this to hosts and use for calling central
   ROX_HOST: 'central.stackrox'
   ROX_PORT: 8000
 
@@ -25,15 +25,15 @@ jobs:
       - name: Set up hostname
         run: |
           echo "127.0.0.1 ${ROX_HOST}" | sudo tee -a /etc/hosts >/dev/null
-      
+
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
-      
+
       - uses: actions/checkout@v6
         with:
           repository: stackrox/stackrox
           path: stackrox
-      
+
       - name: Install Stackrox
         env:
           MAIN_IMAGE_TAG: "latest"
@@ -65,6 +65,7 @@ jobs:
           '{
             "config": {
               "type": "GITHUB_ACTIONS",
+              "audience": "central.stackrox.io",
               "tokenExpirationDuration": "5m",
               "mappings": [
                 {
@@ -79,6 +80,7 @@ jobs:
       - name: Run central-login action
         uses: ./
         with:
+          audience: central.stackrox.io
           endpoint: ${{ env.ROX_URL }}
 
       - name: Install roxctl
