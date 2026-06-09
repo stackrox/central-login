@@ -1,6 +1,9 @@
 name: 'central-login'
 description: A GitHub Action to configure login credentials for an ACS Central instance for use in subsequent steps
 inputs:
+  audience:
+    required: false
+    description: 'Custom audience for the GitHub OIDC identity token request'
   endpoint:
     required: true
     description: 'Central API endpoint in the format of https://<host>:<port>'

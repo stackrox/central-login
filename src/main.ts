@@ -7,13 +7,14 @@ import * as https from 'https'
 async function run(): Promise<void> {
   // Input from the GitHub Action.
   // Currently only supports the endpoint as well as whether to skip TLS verification.
+  const audience: string = core.getInput('audience')
   const endpoint: string = core.getInput('endpoint', {required: true})
   const parsedURL = new URL(`${endpoint}/v1/auth/m2m/exchange`)
   const skipTLSVerify = Boolean(core.getInput('skip-tls-verify'))
   try {
     core.info(`Attempting to obtain an access token for Central ${endpoint}...`)
 
-    const accessToken = await obtainAccessToken(parsedURL, skipTLSVerify)
+    const accessToken = await obtainAccessToken(audience, parsedURL, skipTLSVerify)
 
     core.info(`Successfully obtained an access token for central ${endpoint}!`)
 
@@ -43,13 +44,14 @@ async function run(): Promise<void> {
 }
 
 async function obtainAccessToken(
+  audience: string,
   endpoint: URL,
-  skipTLSVerify: boolean
+  skipTLSVerify: boolean,
 ): Promise<string> {
   const agent = new https.Agent({rejectUnauthorized: !skipTLSVerify})
 
   // Retrieve an ID token from GitHub's OIDC.
-  const idToken: string = await core.getIDToken()
+  const idToken: string = await core.getIDToken(audience || undefined)
 
   // Exchange the ID token from GitHub for a Rox token for Central access.
   const exchangeTokenRequest = {
