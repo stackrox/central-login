@@ -8,8 +8,11 @@
     "format": "prettier --write '**/*.ts' '**/*.yml'",
     "format-check": "prettier --check '**/*.ts' '**/*.yml'",
     "lint": "eslint src/**/*.ts --fix",
-    "package": "esbuild src/main.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --sourcemap",
+    "package": "esbuild src/main.ts --bundle --platform=node --target=node24 --outfile=dist/index.js --sourcemap",
     "all": "npm run build && npm run format && npm run lint && npm run package"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "keywords": [],
   "author": "Red Hat",
