@@ -12,20 +12,20 @@ other actions to use.
 This is as simple as adding the following step to your workflow:
 
 ```yaml
-    - name: Central Login
-      uses: stackrox/central-login@v1
-      with:
-        audience: central.stackrox.io
-        endpoint: https://<central-endpoint>:443
+- name: Central Login
+  uses: stackrox/central-login@v1
+  with:
+    audience: central.stackrox.io
+    endpoint: https://<central-endpoint>:443
 ```
 
 ## Parameters
 
-| Parameter name    | Required?      | Description                                                          |
-|-------------------|----------------|----------------------------------------------------------------------|
+| Parameter name    | Required?      | Description                                                                                                                                                                                                                 |
+| ----------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `audience`        | (optional)     | Custom audience for the GitHub OIDC identity token request. Must match the expected audience configured in the Central machine-to-machine authentication integration. When left empty, the default GitHub audience is used. |
-| `endpoint`        | **(required)** | API endpoint of the ACS Central instance.                            |
-| `skip-tls-verify` | (optional)     | Skip TLS certificat verification for ACS Central's API endpoint.     |
+| `endpoint`        | **(required)** | API endpoint of the ACS Central instance.                                                                                                                                                                                   |
+| `skip-tls-verify` | (optional)     | Skip TLS certificat verification for ACS Central's API endpoint.                                                                                                                                                            |
 
 ## Overview
 
@@ -52,6 +52,7 @@ originating from GitHub Action workflow runs.
 For more information on how to configure this, follow the [RHACS documentation](https://docs.openshift.com/acs/4.4/operating/manage-user-access/configure-short-lived-access.html).
 
 Below is a sample configuration via API you can use:
+
 ```bash
 curl \
   https://<central-endpoint>/v1/auth/m2m \
@@ -87,11 +88,11 @@ After the ACS Central instance has been configured to allow exchanging tokens fr
 add the following step to your workflow:
 
 ```yaml
-    - name: Central Login
-      uses: stackrox/central-login@v1
-      with:
-        audience: central.stackrox.io
-        endpoint: https://<central-endpoint>:443
+- name: Central Login
+  uses: stackrox/central-login@v1
+  with:
+    audience: central.stackrox.io
+    endpoint: https://<central-endpoint>:443
 ```
 
 After the central login step has succeeded, the following environment variables are configured for other steps to use:
@@ -102,21 +103,21 @@ After the central login step has succeeded, the following environment variables 
 For verifying everything works correctly, the example below can be used:
 
 ```yaml
-    - name: Login to Central
-      uses: stackrox/central-login@v1
-      with:
-        audience: central.stackrox.io
-        endpoint: https://<central-endpoint>:443
+- name: Login to Central
+  uses: stackrox/central-login@v1
+  with:
+    audience: central.stackrox.io
+    endpoint: https://<central-endpoint>:443
 
-    - name: Install roxctl from Central
-      uses: stackrox/roxctl-installer-action@v1
-      with:
-        central-endpoint: https://${{ env.ROX_ENDPOINT }}
-        central-token: ${{ env.ROX_API_TOKEN }}
+- name: Install roxctl from Central
+  uses: stackrox/roxctl-installer-action@v1
+  with:
+    central-endpoint: https://${{ env.ROX_ENDPOINT }}
+    central-token: ${{ env.ROX_API_TOKEN }}
 
-    - name: roxctl central whoami
-      run: |
-        roxctl central whoami
+- name: roxctl central whoami
+  run: |
+    roxctl central whoami
 ```
 
 This will output the specifics about the access token (i.e. it's associated permissions and roles) as well as the

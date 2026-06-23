@@ -36,9 +36,9 @@ jobs:
 
       - name: Install Stackrox
         env:
-          MAIN_IMAGE_TAG: "latest"
-          SENSOR_HELM_DEPLOY: "true"
-          ROX_SCANNER_V4: "false"
+          MAIN_IMAGE_TAG: 'latest'
+          SENSOR_HELM_DEPLOY: 'true'
+          ROX_SCANNER_V4: 'false'
         run: |
           stackrox/deploy/k8s/deploy-local.sh
           ROX_PASSWORD=$(cat stackrox/deploy/k8s/central-deploy/password)

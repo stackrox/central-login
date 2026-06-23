@@ -6,9 +6,9 @@ updates:
     schedule:
       interval: daily
     labels:
-      - "dependencies"
-      - "e2e"
-      - "github_actions"
+      - 'dependencies'
+      - 'e2e'
+      - 'github_actions'
 
   - package-ecosystem: npm
     directory: /
@@ -19,8 +19,8 @@ updates:
     groups:
       typescript-eslint:
         patterns:
-          - "@typescript-eslint/*"
+          - '@typescript-eslint/*'
     labels:
-      - "dependencies"
-      - "e2e"
-      - "javascript"
+      - 'dependencies'
+      - 'e2e'
+      - 'javascript'

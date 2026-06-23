@@ -17,7 +17,7 @@ jobs:
       contents: write
     env:
       # Output logs to file in case we need to inspect errors.
-      GITSIGN_LOG: "/tmp/gitsign.log"
+      GITSIGN_LOG: '/tmp/gitsign.log'
     steps:
       - name: Checkout
         uses: actions/checkout@v7

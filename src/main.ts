@@ -1,6 +1,6 @@
-import * as core from '@actions/core';
-import axios, {isAxiosError, AxiosError} from 'axios';
-import isRetryAllowed from 'is-retry-allowed';
+import * as core from '@actions/core'
+import axios, {isAxiosError, AxiosError} from 'axios'
+import isRetryAllowed from 'is-retry-allowed'
 
 import * as https from 'https'
 
@@ -14,7 +14,11 @@ async function run(): Promise<void> {
   try {
     core.info(`Attempting to obtain an access token for Central ${endpoint}...`)
 
-    const accessToken = await obtainAccessToken(audience, parsedURL, skipTLSVerify)
+    const accessToken = await obtainAccessToken(
+      audience,
+      parsedURL,
+      skipTLSVerify
+    )
 
     core.info(`Successfully obtained an access token for central ${endpoint}!`)
 
@@ -36,8 +40,9 @@ async function run(): Promise<void> {
     core.info(`${error}`)
     if (isAxiosError(error)) {
       core.setFailed(
-        `Failed to exchange token: HTTP Status: ${error?.response
-          ?.status} Response: ${JSON.stringify(error?.response?.data)}`
+        `Failed to exchange token: HTTP Status: ${
+          error?.response?.status
+        } Response: ${JSON.stringify(error?.response?.data)}`
       )
     } else if (error instanceof Error) core.setFailed(error.message)
   }
@@ -46,7 +51,7 @@ async function run(): Promise<void> {
 async function obtainAccessToken(
   audience: string,
   endpoint: URL,
-  skipTLSVerify: boolean,
+  skipTLSVerify: boolean
 ): Promise<string> {
   const agent = new https.Agent({rejectUnauthorized: !skipTLSVerify})
 
@@ -63,8 +68,8 @@ async function obtainAccessToken(
     endpoint,
     JSON.stringify(exchangeTokenRequest),
     3,
-    2000,
-  );
+    2000
+  )
 
   return response
 }
@@ -76,56 +81,53 @@ async function postWithRetries(
   maxRetries: number = 3,
   baseDelay: number = 2000
 ): Promise<string> {
-  let lastError;
+  let lastError
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       if (attempt > 0) {
         core.info(`HTTP request retry attempt: ${attempt}`)
-        const delay = baseDelay * attempt;
-        await new Promise( (resolve) => setTimeout(resolve, delay) );
+        const delay = baseDelay * attempt
+        await new Promise(resolve => setTimeout(resolve, delay))
       }
-      const result = await axios.post(
-        endpoint.toString(),
-        payload,
-        {httpsAgent: agent, headers: {'User-Agent': 'central-login-GHA'}},
-      );
+      const result = await axios.post(endpoint.toString(), payload, {
+        httpsAgent: agent,
+        headers: {'User-Agent': 'central-login-GHA'}
+      })
 
       core.info(
-        `Received status ${
-          result.status
-        } from endpoint ${endpoint.toString()}`
+        `Received status ${result.status} from endpoint ${endpoint.toString()}`
       )
 
-      return result.data['accessToken'];
+      return result.data['accessToken']
     } catch (error) {
-      lastError = error;
+      lastError = error
       if (isAxiosError(error)) {
         if (isRetryableError(error) && attempt < maxRetries) {
-          continue;
+          continue
         }
       }
-      return Promise.reject(error);
+      return Promise.reject(error)
     }
   }
-  return Promise.reject(lastError);
+  return Promise.reject(lastError)
 }
 
 function isRetryableError(error: AxiosError): boolean {
-  core.warning(error);
+  core.warning(error)
   if (error.code === 'ECONNABORTED') {
-    return false;
+    return false
   }
   if (!error.response) {
-    return true;
+    return true
   }
-  const errorStatus = error.response.status;
+  const errorStatus = error.response.status
   if (errorStatus === 429) {
-    return true;
+    return true
   }
   if (errorStatus >= 500 && errorStatus <= 599) {
-    return true;
+    return true
   }
-  return isRetryAllowed(error);
+  return isRetryAllowed(error)
 }
 
 function getHostWithPort(url: URL): string {

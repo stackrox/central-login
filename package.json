@@ -5,8 +5,8 @@
   "main": "src/main.ts",
   "scripts": {
     "build": "tsc",
-    "format": "prettier --write '**/*.ts'",
-    "format-check": "prettier --check '**/*.ts'",
+    "format": "prettier --write '**/*.ts' '**/*.yml'",
+    "format-check": "prettier --check '**/*.ts' '**/*.yml'",
     "lint": "eslint src/**/*.ts --fix",
     "package": "esbuild src/main.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --sourcemap",
     "all": "npm run build && npm run format && npm run lint && npm run package"
