@@ -12,5 +12,5 @@ inputs:
     required: false
     description: "Skip TLS certificate verification for Central's API Endpoint"
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
