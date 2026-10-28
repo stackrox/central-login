@@ -9,9 +9,8 @@ on:
     - cron: '0 5 * * 0'
 
 env:
-  # The certificate is valid for this host so in order to use "secure" mode we add this to hosts and use for calling central
-  ROX_HOST: 'central.stackrox'
-  ROX_PORT: 8000
+  # StackRox internal certificate for central is issued for this name.
+  ROX_INTERNAL_CENTRAL_NAME: 'central.stackrox'
 
 jobs:
   e2e:
@@ -22,10 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up hostname
-        run: |
-          echo "127.0.0.1 ${ROX_HOST}" | sudo tee -a /etc/hosts >/dev/null
-
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
 
@@ -33,34 +28,44 @@ jobs:
         with:
           repository: stackrox/stackrox
           path: stackrox
+          # We need the following for `make tag` to work. Previously it wasn't needed, because the operator bundle wasn't required/pulled.
+          # Fetching 'latest' tag for the stackrox images simply worked.
+          # For the operator bundle we need a proper image tag, i.e. a resolved version of 'latest'.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install roxie
+        uses: stackrox/actions/roxie/install-cli@bcda9b2d6d2b644c267e699479656973e84ef7fa # ratchet:stackrox/actions@v1
+        with:
+          version: v0.4.17
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Stackrox
-        env:
-          MAIN_IMAGE_TAG: 'latest'
-          SENSOR_HELM_DEPLOY: 'true'
-          ROX_SCANNER_V4: 'false'
         run: |
-          stackrox/deploy/k8s/deploy-local.sh
-          ROX_PASSWORD=$(cat stackrox/deploy/k8s/central-deploy/password)
-          echo "::add-mask::$ROX_PASSWORD"
-          echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
-          echo "ROX_URL=https://${ROX_HOST}:${ROX_PORT}" >> $GITHUB_ENV
+          envrc_file="$(mktemp)"
+          cd stackrox
+          roxie deploy central \
+            --envrc "$envrc_file" \
+            --resources tiny \
+            --set roxie.imageRegistry=quay.io/stackrox-io \
+            --set central.spec.scannerV4.scannerComponent=Disabled
+          source "$envrc_file"
 
-      - name: Install and trust Central certificate
-        run: |
-          # Extract the server certificate and save it as a new CA file
-          echo | \
-            openssl s_client -showcerts -servername $ROX_HOST -connect $ROX_HOST:8000 2>/dev/null | \
-            awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ { print $0 }' > central.crt
+          echo "::add-mask::$ROX_ADMIN_PASSWORD"
 
-          # Install the certificate into the system trust store
-          sudo cp central.crt /usr/local/share/ca-certificates/central.crt
-          sudo update-ca-certificates
+          # Split on last colon. ROX_ENDPOINT is expected to be of the form "<host>:<port>".
+          export ROX_CENTRAL_HOST="${ROX_ENDPOINT%:*}"
+          export ROX_CENTRAL_PORT="${ROX_ENDPOINT##*:}"
+
+          env | grep "^ROX_" >> $GITHUB_ENV
 
       - name: Add machine to machine configuration in Central
         run: |
-          curl -u admin:${ROX_PASSWORD} \
-          ${ROX_URL}/v1/auth/m2m \
+          curl \
+            --cacert "$ROX_CA_CERT_FILE" \
+            --resolve "${ROX_INTERNAL_CENTRAL_NAME}:${ROX_CENTRAL_PORT}:${ROX_CENTRAL_HOST}" \
+            -u admin:${ROX_ADMIN_PASSWORD} \
+          https://${ROX_INTERNAL_CENTRAL_NAME}:${ROX_CENTRAL_PORT}/v1/auth/m2m \
           -d \
           '{
             "config": {
@@ -81,14 +86,16 @@ jobs:
         uses: ./
         with:
           audience: central.stackrox.io
-          endpoint: ${{ env.ROX_URL }}
+          endpoint: ${{ env.ROX_BASE_URL }}
 
       - name: Install roxctl
         uses: stackrox/roxctl-installer-action@v1
         with:
-          central-endpoint: ${{ env.ROX_URL }}
+          central-endpoint: ${{ env.ROX_BASE_URL }}
           central-token: ${{ env.ROX_API_TOKEN }}
+          skip-tls-verify: true # The action doesn't support providing certs. Doing the whole update-tls dance just for this seems unnecessary.
 
       - name: Check the current user with roxctl
         run: |
+          unset ROX_ADMIN_PASSWORD # Otherwise roxctl will be confused about which authentication method to use.
           roxctl central whoami
