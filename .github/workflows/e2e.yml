@@ -83,6 +83,7 @@ jobs:
       - name: Add machine to machine configuration in Central
         run: |
           curl -u admin:${ROX_PASSWORD} \
+          --retry 3 --retry-connrefused --retry-delay 5 \
           ${ROX_URL}/v1/auth/m2m \
           -d \
           '{
