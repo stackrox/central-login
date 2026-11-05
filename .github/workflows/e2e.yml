@@ -28,9 +28,7 @@ jobs:
         with:
           repository: stackrox/stackrox
           path: stackrox
-          # We need the following for `make tag` to work. Previously it wasn't needed, because the operator bundle wasn't required/pulled.
-          # Fetching 'latest' tag for the stackrox images simply worked.
-          # For the operator bundle we need a proper image tag, i.e. a resolved version of 'latest'.
+          # We need the following for `make tag` to generate a proper image tag of operator bundle.
           fetch-depth: 0
           fetch-tags: true
 
