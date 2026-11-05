@@ -49,6 +49,7 @@ jobs:
             --envrc "$envrc_file" \
             --resources tiny \
             --set roxie.imageRegistry=quay.io/stackrox-io \
+            --set central.namespace=stackrox \
             --set central.spec.scannerV4.scannerComponent=Disabled
           source "$envrc_file"
 
