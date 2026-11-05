@@ -9,8 +9,8 @@ on:
     - cron: '0 5 * * 0'
 
 env:
-  # StackRox internal certificate for central is issued for this name.
-  ROX_INTERNAL_CENTRAL_NAME: 'central.stackrox'
+  # The certificate is valid for this host so in order to use "secure" mode we add this to hosts and use for calling central
+  ROX_HOST: 'central.stackrox'
 
 jobs:
   e2e:
@@ -20,6 +20,10 @@ jobs:
       id-token: write # Required for the central-login action which we will test.
     steps:
       - uses: actions/checkout@v7
+
+      - name: Set up hostname
+        run: |
+          echo "127.0.0.1 ${ROX_HOST}" | sudo tee -a /etc/hosts >/dev/null
 
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
@@ -53,19 +57,33 @@ jobs:
 
           echo "::add-mask::$ROX_ADMIN_PASSWORD"
 
+          # This workflow expects a different name.
+          export ROX_PASSWORD="$ROX_ADMIN_PASSWORD"
+          unset ROX_ADMIN_PASSWORD
+
           # Split on last colon. ROX_ENDPOINT is expected to be of the form "<host>:<port>".
           export ROX_CENTRAL_HOST="${ROX_ENDPOINT%:*}"
           export ROX_CENTRAL_PORT="${ROX_ENDPOINT##*:}"
 
+          echo "ROX_URL=https://${ROX_HOST}:${ROX_CENTRAL_PORT}" >> "$GITHUB_ENV"
+
           env | grep "^ROX_" >> $GITHUB_ENV
+
+      - name: Install and trust Central certificate
+        run: |
+          # Extract the server certificate and save it as a new CA file
+          echo | \
+            openssl s_client -showcerts -servername $ROX_HOST -connect $ROX_HOST:$ROX_CENTRAL_PORT 2>/dev/null | \
+            awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ { print $0 }' > central.crt
+
+          # Install the certificate into the system trust store
+          sudo cp central.crt /usr/local/share/ca-certificates/central.crt
+          sudo update-ca-certificates
 
       - name: Add machine to machine configuration in Central
         run: |
-          curl \
-            --cacert "$ROX_CA_CERT_FILE" \
-            --resolve "${ROX_INTERNAL_CENTRAL_NAME}:${ROX_CENTRAL_PORT}:${ROX_CENTRAL_HOST}" \
-            -u admin:${ROX_ADMIN_PASSWORD} \
-          https://${ROX_INTERNAL_CENTRAL_NAME}:${ROX_CENTRAL_PORT}/v1/auth/m2m \
+          curl -u admin:${ROX_PASSWORD} \
+          ${ROX_URL}/v1/auth/m2m \
           -d \
           '{
             "config": {
@@ -86,16 +104,14 @@ jobs:
         uses: ./
         with:
           audience: central.stackrox.io
-          endpoint: ${{ env.ROX_BASE_URL }}
+          endpoint: ${{ env.ROX_URL }}
 
       - name: Install roxctl
         uses: stackrox/roxctl-installer-action@v1
         with:
-          central-endpoint: ${{ env.ROX_BASE_URL }}
+          central-endpoint: ${{ env.ROX_URL }}
           central-token: ${{ env.ROX_API_TOKEN }}
-          skip-tls-verify: true # The action doesn't support providing certs. Doing the whole update-tls dance just for this seems unnecessary.
 
       - name: Check the current user with roxctl
         run: |
-          unset ROX_ADMIN_PASSWORD # Otherwise roxctl will be confused about which authentication method to use.
           roxctl central whoami
