@@ -11,7 +11,6 @@ on:
 env:
   # The certificate is valid for this host so in order to use "secure" mode we add this to hosts and use for calling central
   ROX_HOST: 'central.stackrox'
-  ROX_PORT: 8000
 
 jobs:
   e2e:
@@ -33,24 +32,48 @@ jobs:
         with:
           repository: stackrox/stackrox
           path: stackrox
+          # We need the following for `make tag` to generate a proper image tag of operator bundle.
+          fetch-depth: 0
+          fetch-tags: true
+
+      # TODO(ROX-37886): Remove this and rely on stackrox/stackrox's scripts/roxie.sh instead.
+      - name: Install roxie
+        uses: stackrox/actions/roxie/install-cli@bcda9b2d6d2b644c267e699479656973e84ef7fa # ratchet:stackrox/actions@v1
+        with:
+          version: v0.4.17
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Stackrox
-        env:
-          MAIN_IMAGE_TAG: 'latest'
-          SENSOR_HELM_DEPLOY: 'true'
-          ROX_SCANNER_V4: 'false'
         run: |
-          stackrox/deploy/k8s/deploy-local.sh
-          ROX_PASSWORD=$(cat stackrox/deploy/k8s/central-deploy/password)
-          echo "::add-mask::$ROX_PASSWORD"
-          echo "ROX_PASSWORD=$ROX_PASSWORD" >> $GITHUB_ENV
-          echo "ROX_URL=https://${ROX_HOST}:${ROX_PORT}" >> $GITHUB_ENV
+          envrc_file="$(mktemp)"
+          cd stackrox
+          roxie deploy central \
+            --envrc "$envrc_file" \
+            --resources tiny \
+            --set roxie.imageRegistry=quay.io/stackrox-io \
+            --set central.namespace=stackrox \
+            --set central.spec.scannerV4.scannerComponent=Disabled
+          source "$envrc_file"
+
+          echo "::add-mask::$ROX_ADMIN_PASSWORD"
+
+          # This workflow expects a different name.
+          export ROX_PASSWORD="$ROX_ADMIN_PASSWORD"
+          unset ROX_ADMIN_PASSWORD
+
+          # Split on last colon. ROX_ENDPOINT is expected to be of the form "<host>:<port>".
+          export ROX_CENTRAL_HOST="${ROX_ENDPOINT%:*}"
+          export ROX_CENTRAL_PORT="${ROX_ENDPOINT##*:}"
+
+          echo "ROX_URL=https://${ROX_HOST}:${ROX_CENTRAL_PORT}" >> "$GITHUB_ENV"
+
+          env | grep "^ROX_" >> $GITHUB_ENV
 
       - name: Install and trust Central certificate
         run: |
           # Extract the server certificate and save it as a new CA file
           echo | \
-            openssl s_client -showcerts -servername $ROX_HOST -connect $ROX_HOST:8000 2>/dev/null | \
+            openssl s_client -showcerts -servername $ROX_HOST -connect $ROX_HOST:$ROX_CENTRAL_PORT 2>/dev/null | \
             awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ { print $0 }' > central.crt
 
           # Install the certificate into the system trust store
@@ -60,6 +83,7 @@ jobs:
       - name: Add machine to machine configuration in Central
         run: |
           curl -u admin:${ROX_PASSWORD} \
+          --retry 3 --retry-connrefused --retry-delay 5 \
           ${ROX_URL}/v1/auth/m2m \
           -d \
           '{
